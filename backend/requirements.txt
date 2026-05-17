@@ -1,0 +1,8 @@
+fastapi==0.115.6
+python-dotenv==1.0.1
+uvicorn[standard]==0.34.0
+psycopg2-binary==2.9.10
+gitpython==3.1.43
+radon==6.0.1
+lizard==1.17.10
+pydantic==2.10.4
