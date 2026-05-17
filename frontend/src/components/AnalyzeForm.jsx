@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
+import ProgressBar from "./ProgressBar";
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 1500;
 
 export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
   const [repoUrl, setRepoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState({ pct: 0, message: "" });
   const pollRef = useRef(null);
 
   const stopPolling = () => {
@@ -15,23 +17,33 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
     }
   };
 
-  const pollResults = (jobId) =>
+  const pollJobStatus = (jobId) =>
     new Promise((resolve, reject) => {
-      const fetchResults = async () => {
+      const tick = async () => {
         try {
-          const res = await fetch(`${apiBase}/results/${jobId}`);
+          const res = await fetch(`${apiBase}/jobs/${jobId}/status`);
           if (!res.ok) {
-            throw new Error("Failed to fetch job results");
+            throw new Error("Failed to fetch job status");
           }
           const data = await res.json();
           onStatusChange?.(data.status);
+          setProgress({
+            pct: data.progress_pct ?? 0,
+            message: data.progress_message || "",
+          });
 
           if (data.status === "complete") {
             stopPolling();
-            resolve(data);
+            const resultsRes = await fetch(`${apiBase}/results/${jobId}`);
+            if (!resultsRes.ok) {
+              throw new Error("Failed to fetch job results");
+            }
+            resolve(await resultsRes.json());
           } else if (data.status === "failed") {
             stopPolling();
-            reject(new Error("Analysis job failed"));
+            reject(
+              new Error(data.error_detail || "Analysis job failed"),
+            );
           }
         } catch (err) {
           stopPolling();
@@ -39,8 +51,8 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
         }
       };
 
-      fetchResults();
-      pollRef.current = setInterval(fetchResults, POLL_INTERVAL_MS);
+      tick();
+      pollRef.current = setInterval(tick, POLL_INTERVAL_MS);
     });
 
   const handleSubmit = async (e) => {
@@ -55,7 +67,8 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
     }
 
     setLoading(true);
-    onStatusChange?.("running");
+    setProgress({ pct: 0, message: "Submitting…" });
+    onStatusChange?.("pending");
 
     try {
       const res = await fetch(`${apiBase}/analyze`, {
@@ -81,7 +94,7 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
         const data = await resultsRes.json();
         onComplete?.(data);
       } else {
-        const data = await pollResults(jobId);
+        const data = await pollJobStatus(jobId);
         onComplete?.(data);
       }
     } catch (err) {
@@ -95,39 +108,24 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
   return (
     <form onSubmit={handleSubmit}>
       <h2 style={{ margin: "0 0 1rem" }}>Analyze Repository</h2>
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+      <div className="analyze-row">
         <input
           type="url"
           placeholder="https://github.com/owner/repo"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           disabled={loading}
-          style={{
-            flex: "1 1 280px",
-            padding: "0.6rem 0.85rem",
-            borderRadius: "6px",
-            border: "1px solid #2a3548",
-            background: "#0f1419",
-            color: "#e7ecf3",
-            fontSize: "0.95rem",
-          }}
+          className="input-url"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "0.6rem 1.25rem",
-            borderRadius: "6px",
-            border: "none",
-            background: loading ? "#3b4a63" : "#3b82f6",
-            color: "#fff",
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
+        <button type="submit" disabled={loading} className="btn-primary">
           {loading ? "Analyzing…" : "Analyze"}
         </button>
       </div>
+      {loading && (
+        <div style={{ marginTop: "1rem" }}>
+          <ProgressBar pct={progress.pct} message={progress.message} />
+        </div>
+      )}
       {error && <p className="status error">{error}</p>}
     </form>
   );
