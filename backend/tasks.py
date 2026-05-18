@@ -4,6 +4,7 @@ from typing import Any
 import analyzer
 import database
 import explain
+import post_analysis
 import redis_cache
 from celery_app import celery_app
 from debt_model import get_scorer
@@ -29,9 +30,12 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
         cached = redis_cache.get_cached_analysis(repo_url)
         if cached:
             database.update_job_progress(job_id, 40, "Using cached analysis (recent)")
-            enriched = _enrich_metrics(cached)
+            modules = cached.get("modules", cached) if isinstance(cached, dict) else cached
+            co_pairs = cached.get("co_change_pairs", []) if isinstance(cached, dict) else []
+            enriched = _enrich_metrics(modules)
             database.update_job_progress(job_id, 85, "Saving results…")
-            _persist_results(job_id, enriched)
+            _persist_results(job_id, enriched, co_pairs)
+            post_analysis.run_post_analysis(job_id, co_change_pairs=co_pairs)
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
             return {"job_id": job_id, "status": "complete", "cached": True}
@@ -41,16 +45,26 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
 
         try:
             database.update_job_progress(job_id, 25, "Computing churn & scanning files…")
-            raw_metrics = analyzer.analyze_python_files(repo_path, git_repo)
+            raw_metrics, co_change_pairs = analyzer.analyze_python_files(
+                repo_path, git_repo
+            )
 
             database.update_job_progress(job_id, 55, "Scanning files…")
-            redis_cache.set_cached_analysis(repo_url, raw_metrics)
+            redis_cache.set_cached_analysis(
+                repo_url,
+                {"modules": raw_metrics, "co_change_pairs": co_change_pairs},
+            )
 
             database.update_job_progress(job_id, 75, "Running models…")
             enriched = _enrich_metrics(raw_metrics)
 
             database.update_job_progress(job_id, 90, "Saving results…")
-            _persist_results(job_id, enriched)
+            _persist_results(job_id, enriched, co_change_pairs)
+
+            database.update_job_progress(job_id, 95, "Building dependency graph…")
+            post_analysis.run_post_analysis(
+                job_id, repo_path=repo_path, co_change_pairs=co_change_pairs
+            )
 
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
@@ -64,7 +78,11 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
         raise
 
 
-def _persist_results(job_id: int, metrics: list[dict[str, Any]]) -> None:
+def _persist_results(
+    job_id: int,
+    metrics: list[dict[str, Any]],
+    co_change_pairs: list[dict[str, Any]] | None = None,
+) -> None:
     rows_for_db = []
     shap_by_index: list[list[dict[str, Any]]] = []
     for m in metrics:
@@ -75,3 +93,6 @@ def _persist_results(job_id: int, metrics: list[dict[str, Any]]) -> None:
     module_ids = database.insert_module_metrics(job_id, rows_for_db)
     for module_id, shap_list in zip(module_ids, shap_by_index):
         database.insert_shap_explanations(module_id, shap_list)
+
+    if co_change_pairs:
+        database.insert_co_change_pairs(job_id, co_change_pairs)

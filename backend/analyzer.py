@@ -13,7 +13,7 @@ from radon.complexity import cc_visit
 
 def clone_repo(repo_url: str) -> tuple[str, Repo]:
     tmp_dir = tempfile.mkdtemp(prefix="telemetryx_")
-    repo = Repo.clone_from(repo_url, tmp_dir, depth=1)
+    repo = Repo.clone_from(repo_url, tmp_dir)
     return tmp_dir, repo
 
 
@@ -271,7 +271,136 @@ SUPPORTED_EXTENSIONS = LIZARD_NATIVE_EXTENSIONS.union({
 })
 
 
-def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[dict[str, Any]]:
+BUG_KEYWORDS = ("fix", "bug", "hotfix", "revert", "patch", "broken")
+
+
+def _commit_changed_files(commit) -> list[str]:
+    try:
+        return list(commit.stats.files.keys())
+    except Exception:
+        try:
+            if commit.parents:
+                diffs = commit.parents[0].diff(commit)
+                return [d.b_path for d in diffs if d.b_path]
+            return [
+                entry.path
+                for entry in commit.tree.traverse()
+                if entry.type == "blob"
+            ]
+        except Exception:
+            return []
+
+
+def extract_git_signals(
+    git_repo: Repo, source_files: list[Path], root: Path
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Per-file git history signals and co-change pairs (last 90 days, count >= 3).
+    Returns (file_signals, co_change_pairs).
+    """
+    scanned_set = {
+        str(file.relative_to(root)).replace("\\", "/") for file in source_files
+    }
+    file_commits: dict[str, list] = {}
+    co_change_counts: dict[tuple[str, str], int] = {}
+    since_90d = datetime.now(timezone.utc) - timedelta(days=90)
+
+    try:
+        all_commits = list(git_repo.iter_commits("HEAD"))
+    except Exception:
+        return {}, []
+
+    for commit in all_commits:
+        changed_files = [f.replace("\\", "/") for f in _commit_changed_files(commit)]
+        scanned_changed = [f for f in changed_files if f in scanned_set]
+
+        commit_dt = datetime.fromtimestamp(commit.committed_date, tz=timezone.utc)
+        if commit_dt >= since_90d and len(scanned_changed) <= 30:
+            for i in range(len(scanned_changed)):
+                for j in range(i + 1, len(scanned_changed)):
+                    f1, f2 = scanned_changed[i], scanned_changed[j]
+                    if f1 > f2:
+                        f1, f2 = f2, f1
+                    co_change_counts[(f1, f2)] = co_change_counts.get((f1, f2), 0) + 1
+
+        for f in scanned_changed:
+            file_commits.setdefault(f, []).append(commit)
+
+    co_change_pairs = [
+        {"file_a": f1, "file_b": f2, "co_change_count": count}
+        for (f1, f2), count in co_change_counts.items()
+        if count >= 3
+    ]
+
+    results: dict[str, dict[str, Any]] = {}
+    current_time = datetime.now(timezone.utc)
+
+    for f in scanned_set:
+        commits_for_file = file_commits.get(f, [])
+        total_commits = len(commits_for_file)
+
+        if total_commits == 0:
+            results[f] = {
+                "commit_timestamps": [],
+                "unique_author_count": 0,
+                "top_author_pct": 0.0,
+                "bug_fix_ratio": 0.0,
+                "days_since_last_commit": 999,
+                "co_changes": {},
+            }
+            continue
+
+        timestamps: list[int] = []
+        authors: list[str] = []
+        bug_commits_count = 0
+
+        for c in commits_for_file:
+            timestamps.append(c.committed_date)
+            authors.append(c.author.name or "unknown")
+            msg = (c.message or "").lower()
+            if any(k in msg for k in BUG_KEYWORDS):
+                bug_commits_count += 1
+
+        unique_author_count = len(set(authors))
+        author_freq: dict[str, int] = {}
+        for a in authors:
+            author_freq[a] = author_freq.get(a, 0) + 1
+        max_author_commits = max(author_freq.values()) if author_freq else 0
+        top_author_pct = (
+            round(max_author_commits / total_commits, 4) if total_commits > 0 else 0.0
+        )
+        bug_fix_ratio = (
+            round(bug_commits_count / total_commits, 4) if total_commits > 0 else 0.0
+        )
+
+        last_commit = commits_for_file[0]
+        last_commit_dt = datetime.fromtimestamp(
+            last_commit.committed_date, tz=timezone.utc
+        )
+        days_since_last_commit = max(0, (current_time - last_commit_dt).days)
+
+        co_changes: dict[str, int] = {}
+        for pair in co_change_pairs:
+            if pair["file_a"] == f:
+                co_changes[pair["file_b"]] = pair["co_change_count"]
+            elif pair["file_b"] == f:
+                co_changes[pair["file_a"]] = pair["co_change_count"]
+
+        results[f] = {
+            "commit_timestamps": timestamps,
+            "unique_author_count": unique_author_count,
+            "top_author_pct": top_author_pct,
+            "bug_fix_ratio": bug_fix_ratio,
+            "days_since_last_commit": days_since_last_commit,
+            "co_changes": co_changes,
+        }
+
+    return results, co_change_pairs
+
+
+def analyze_python_files(
+    repo_path: str, git_repo: Repo | None = None
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     root = Path(repo_path)
     all_files = []
     for ext in SUPPORTED_EXTENSIONS:
@@ -282,6 +411,12 @@ def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[d
         for p in all_files
         if not any(part.startswith(".") for part in p.parts)
     ]
+    git_signals: dict[str, dict[str, Any]] = {}
+    co_change_pairs: list[dict[str, Any]] = []
+    if git_repo:
+        git_signals, co_change_pairs = extract_git_signals(
+            git_repo, source_files, root
+        )
     test_loc_index = _build_test_loc_index(source_files, root)
     results: list[dict[str, Any]] = []
 
@@ -339,8 +474,16 @@ def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[d
         coverage_ratio = round(min(1.0, test_loc / source_loc), 4)
 
         churn = compute_churn_90d(git_repo, rel_path) if git_repo else 0
-
         imports_list = _extract_imports_multi(file, source)
+
+        signals = git_signals.get(rel_path, {
+            "commit_timestamps": [],
+            "unique_author_count": 0,
+            "top_author_pct": 0.0,
+            "bug_fix_ratio": 0.0,
+            "days_since_last_commit": 0,
+            "co_changes": {}
+        })
 
         results.append(
             {
@@ -354,15 +497,22 @@ def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[d
                 "imports": ",".join(imports_list),
                 "churn_90d": churn,
                 "test_coverage_ratio": coverage_ratio,
+                "commit_timestamps": signals["commit_timestamps"],
+                "unique_author_count": signals["unique_author_count"],
+                "top_author_pct": signals["top_author_pct"],
+                "bug_fix_ratio": signals["bug_fix_ratio"],
+                "days_since_last_commit": signals["days_since_last_commit"],
+                "co_changes": signals["co_changes"],
             }
         )
 
-    return results
+    return results, co_change_pairs
 
 
 def analyze_repo(repo_url: str) -> list[dict[str, Any]]:
     repo_path, git_repo = clone_repo(repo_url)
     try:
-        return analyze_python_files(repo_path, git_repo)
+        modules, _ = analyze_python_files(repo_path, git_repo)
+        return modules
     finally:
         shutil.rmtree(repo_path, ignore_errors=True)

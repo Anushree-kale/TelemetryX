@@ -1,4 +1,5 @@
 import os
+import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,50 @@ CREATE TABLE IF NOT EXISTS module_metrics (
     debt_score FLOAT,
     roi_days FLOAT,
     risk_level TEXT,
-    imports TEXT DEFAULT ''
+    imports TEXT DEFAULT '',
+    commit_timestamps TEXT DEFAULT '',
+    unique_author_count INTEGER DEFAULT 0,
+    top_author_pct FLOAT DEFAULT 0,
+    bug_fix_ratio FLOAT DEFAULT 0,
+    days_since_last_commit INTEGER DEFAULT 0,
+    co_changes TEXT DEFAULT '',
+    in_degree INTEGER DEFAULT 0,
+    out_degree INTEGER DEFAULT 0,
+    betweenness FLOAT DEFAULT 0,
+    cluster_id INTEGER DEFAULT 0,
+    downstream_count INTEGER DEFAULT 0,
+    is_critical BOOLEAN DEFAULT FALSE,
+    priority_score FLOAT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS co_change_pairs (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    file_a TEXT NOT NULL,
+    file_b TEXT NOT NULL,
+    co_change_count INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dependency_graphs (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER UNIQUE REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    graph_json JSONB NOT NULL,
+    node_count INTEGER DEFAULT 0,
+    edge_count INTEGER DEFAULT 0,
+    cluster_count INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS roadmap_items (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    rank INTEGER NOT NULL,
+    module_id INTEGER REFERENCES module_metrics(id) ON DELETE CASCADE,
+    priority_score FLOAT,
+    confidence_margin FLOAT,
+    cascade_benefit FLOAT,
+    downstream_files TEXT[],
+    fix_hours FLOAT,
+    reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS shap_explanations (
@@ -66,6 +110,19 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS debt_score FLOAT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS roi_days FLOAT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS risk_level TEXT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS imports TEXT DEFAULT '';
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS commit_timestamps TEXT DEFAULT '';
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS unique_author_count INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS top_author_pct FLOAT DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS bug_fix_ratio FLOAT DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS days_since_last_commit INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS co_changes TEXT DEFAULT '';
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS in_degree INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS out_degree INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS betweenness FLOAT DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS cluster_id INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS downstream_count INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT FALSE;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
 """
 
 
@@ -173,15 +230,29 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                 INSERT INTO module_metrics (
                     job_id, file_path, cyclomatic_complexity, cognitive_complexity,
                     lines_of_code, function_count, churn_90d, test_coverage_ratio,
-                    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports
+                    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
+                    commit_timestamps, unique_author_count, top_author_pct,
+                    bug_fix_ratio, days_since_last_commit, co_changes
                 ) VALUES (
                     %(job_id)s, %(file_path)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
                     %(churn_90d)s, %(test_coverage_ratio)s, %(max_fn_complexity)s,
-                    %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s
+                    %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s,
+                    %(commit_timestamps)s, %(unique_author_count)s, %(top_author_pct)s,
+                    %(bug_fix_ratio)s, %(days_since_last_commit)s, %(co_changes)s
                 ) RETURNING id
                 """,
-                {**m, "job_id": job_id, "imports": m.get("imports", "")},
+                {
+                    **m,
+                    "job_id": job_id,
+                    "imports": m.get("imports", ""),
+                    "commit_timestamps": json.dumps(m.get("commit_timestamps", [])),
+                    "unique_author_count": int(m.get("unique_author_count", 0)),
+                    "top_author_pct": float(m.get("top_author_pct", 0.0)),
+                    "bug_fix_ratio": float(m.get("bug_fix_ratio", 0.0)),
+                    "days_since_last_commit": int(m.get("days_since_last_commit", 0)),
+                    "co_changes": json.dumps(m.get("co_changes", {})),
+                },
             )
             module_ids.append(cur.fetchone()[0])
     return module_ids
@@ -264,21 +335,215 @@ def _attach_reasons(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return modules
 
 
+_MODULE_COLUMNS = """
+    id, job_id, file_path, cyclomatic_complexity, cognitive_complexity,
+    lines_of_code, function_count, churn_90d, test_coverage_ratio,
+    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
+    commit_timestamps, unique_author_count, top_author_pct, bug_fix_ratio,
+    days_since_last_commit, co_changes, in_degree, out_degree, betweenness,
+    cluster_id, downstream_count, is_critical, priority_score
+"""
+
+
+def _parse_module_row(row: dict[str, Any]) -> dict[str, Any]:
+    m = dict(row)
+    if m.get("co_changes") and isinstance(m["co_changes"], str):
+        try:
+            m["co_changes"] = json.loads(m["co_changes"])
+        except json.JSONDecodeError:
+            m["co_changes"] = {}
+    m["is_critical"] = bool(m.get("is_critical"))
+    return m
+
+
 def get_job_modules(job_id: int) -> list[dict[str, Any]]:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
-            """
-            SELECT id, file_path, cyclomatic_complexity, cognitive_complexity,
-                   lines_of_code, function_count, churn_90d, test_coverage_ratio,
-                   max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports
+            f"""
+            SELECT {_MODULE_COLUMNS}
             FROM module_metrics
             WHERE job_id = %s
             ORDER BY debt_score DESC NULLS LAST
             """,
             (job_id,),
         )
-        modules = [dict(row) for row in cur.fetchall()]
+        modules = [_parse_module_row(dict(row)) for row in cur.fetchall()]
     return _attach_reasons(modules)
+
+
+def get_module_by_id(module_id: int) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            f"""
+            SELECT {_MODULE_COLUMNS}
+            FROM module_metrics WHERE id = %s
+            """,
+            (module_id,),
+        )
+        row = cur.fetchone()
+        return _parse_module_row(dict(row)) if row else None
+
+
+def insert_co_change_pairs(job_id: int, pairs: list[dict[str, Any]]) -> None:
+    if not pairs:
+        return
+    with get_cursor() as cur:
+        psycopg2.extras.execute_batch(
+            cur,
+            """
+            INSERT INTO co_change_pairs (job_id, file_a, file_b, co_change_count)
+            VALUES (%(job_id)s, %(file_a)s, %(file_b)s, %(co_change_count)s)
+            """,
+            [{**p, "job_id": job_id} for p in pairs],
+        )
+
+
+def get_co_change_pairs(job_id: int) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT file_a, file_b, co_change_count
+            FROM co_change_pairs WHERE job_id = %s
+            """,
+            (job_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def update_module_graph_metrics(
+    job_id: int, node_metrics: dict[str, dict[str, Any]]
+) -> None:
+    with get_cursor() as cur:
+        for file_path, metrics in node_metrics.items():
+            cur.execute(
+                """
+                UPDATE module_metrics
+                SET in_degree = %s, out_degree = %s, betweenness = %s,
+                    cluster_id = %s, downstream_count = %s
+                WHERE job_id = %s AND file_path = %s
+                """,
+                (
+                    metrics["in_degree"],
+                    metrics["out_degree"],
+                    metrics["betweenness"],
+                    metrics["cluster_id"],
+                    metrics["downstream_count"],
+                    job_id,
+                    file_path,
+                ),
+            )
+
+
+def insert_dependency_graph(
+    job_id: int,
+    graph_json: dict,
+    node_count: int,
+    edge_count: int,
+    cluster_count: int,
+) -> None:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO dependency_graphs
+                (job_id, graph_json, node_count, edge_count, cluster_count)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (job_id) DO UPDATE SET
+                graph_json = EXCLUDED.graph_json,
+                node_count = EXCLUDED.node_count,
+                edge_count = EXCLUDED.edge_count,
+                cluster_count = EXCLUDED.cluster_count
+            """,
+            (
+                job_id,
+                json.dumps(graph_json),
+                node_count,
+                edge_count,
+                cluster_count,
+            ),
+        )
+
+
+def get_dependency_graph(job_id: int) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, job_id, graph_json, node_count, edge_count, cluster_count
+            FROM dependency_graphs WHERE job_id = %s
+            """,
+            (job_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        if isinstance(result["graph_json"], str):
+            result["graph_json"] = json.loads(result["graph_json"])
+        return result
+
+
+def replace_roadmap_items(job_id: int, items: list[dict[str, Any]]) -> None:
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM roadmap_items WHERE job_id = %s", (job_id,))
+        for item in items:
+            cur.execute(
+                """
+                UPDATE module_metrics
+                SET priority_score = %s
+                WHERE id = %s
+                """,
+                (item["priority_score"], item["module_id"]),
+            )
+            cur.execute(
+                """
+                INSERT INTO roadmap_items (
+                    job_id, rank, module_id, priority_score, confidence_margin,
+                    cascade_benefit, downstream_files, fix_hours, reason
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    job_id,
+                    item["rank"],
+                    item["module_id"],
+                    item["priority_score"],
+                    item["confidence_margin"],
+                    item["cascade_benefit"],
+                    item["downstream_files"],
+                    item["fix_hours"],
+                    item["reason"],
+                ),
+            )
+
+
+def get_roadmap_items(job_id: int) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT r.rank, r.priority_score, r.confidence_margin, r.cascade_benefit,
+                   r.downstream_files, r.fix_hours, r.reason,
+                   m.id AS module_id, m.file_path, m.debt_score, m.downstream_count,
+                   m.is_critical, m.roi_days, m.bug_fix_ratio, m.cluster_id,
+                   m.in_degree, m.out_degree, m.priority_score
+            FROM roadmap_items r
+            JOIN module_metrics m ON m.id = r.module_id
+            WHERE r.job_id = %s
+            ORDER BY r.rank ASC
+            """,
+            (job_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def set_module_critical(module_id: int, is_critical: bool) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            UPDATE module_metrics SET is_critical = %s WHERE id = %s
+            RETURNING job_id
+            """,
+            (is_critical, module_id),
+        )
+        row = cur.fetchone()
+        return {"job_id": row["job_id"]} if row else None
 
 
 def get_all_modules() -> list[dict[str, Any]]:

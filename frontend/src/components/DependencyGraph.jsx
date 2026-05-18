@@ -99,10 +99,11 @@ export default function DependencyGraph({ jobId }) {
       .data(data.links)
       .enter()
       .append("line")
-      .attr("stroke", "#1f2a37")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", 1.5)
-      .attr("marker-end", "url(#arrow)");
+      .attr("stroke", (l) => l.type === "coupling" ? "#a855f7" : "#1f2a37")
+      .attr("stroke-opacity", (l) => l.type === "coupling" ? 0.45 : 0.6)
+      .attr("stroke-width", (l) => l.type === "coupling" ? Math.min(6, 1 + l.weight / 2) : 1.5)
+      .attr("stroke-dasharray", (l) => l.type === "coupling" ? "4,4" : null)
+      .attr("marker-end", (l) => l.type === "coupling" ? null : "url(#arrow)");
 
     // Draw Nodes (Circles)
     const node = g.append("g")
@@ -126,23 +127,29 @@ export default function DependencyGraph({ jobId }) {
 
         node.attr("opacity", (n) => (neighbors.has(n.id) ? 1.0 : 0.25));
         link
-          .attr("stroke", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? "#3b82f6" : "#1f2a37"
-          )
+          .attr("stroke", (l) => {
+            if (l.source.id === d.id || l.target.id === d.id) {
+              return l.type === "coupling" ? "#c084fc" : "#3b82f6";
+            }
+            return l.type === "coupling" ? "#a855f7" : "#1f2a37";
+          })
           .attr("stroke-opacity", (l) =>
             l.source.id === d.id || l.target.id === d.id ? 1.0 : 0.1
           )
-          .attr("stroke-width", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? 2.5 : 1.5
-          );
+          .attr("stroke-width", (l) => {
+            if (l.source.id === d.id || l.target.id === d.id) {
+              return l.type === "coupling" ? Math.min(8, 2 + l.weight / 2) : 2.5;
+            }
+            return l.type === "coupling" ? Math.min(6, 1 + l.weight / 2) : 1.5;
+          });
       })
       .on("mouseout", () => {
         setHoveredNode(null);
         node.attr("opacity", 1.0);
         link
-          .attr("stroke", "#1f2a37")
-          .attr("stroke-opacity", 0.6)
-          .attr("stroke-width", 1.5);
+          .attr("stroke", (l) => l.type === "coupling" ? "#a855f7" : "#1f2a37")
+          .attr("stroke-opacity", (l) => l.type === "coupling" ? 0.45 : 0.6)
+          .attr("stroke-width", (l) => l.type === "coupling" ? Math.min(6, 1 + l.weight / 2) : 1.5);
       });
 
     // Outer Glow / Halo for high in-degree core hubs
@@ -234,6 +241,12 @@ export default function DependencyGraph({ jobId }) {
         </div>
         <div className="graph-legend-group">
           <span className="graph-legend-item">
+            <span className="legend-line import-solid" /> Import
+          </span>
+          <span className="graph-legend-item">
+            <span className="legend-line coupling-dashed" /> Co-Change
+          </span>
+          <span className="graph-legend-item">
             <span className="legend-dot green" /> Low Risk
           </span>
           <span className="graph-legend-item">
@@ -265,6 +278,29 @@ export default function DependencyGraph({ jobId }) {
               <div className="stat-col">
                 <span className="stat-num">{hoveredNode.inDegree}</span>
                 <span className="stat-lbl">Imported By</span>
+              </div>
+            </div>
+            {/* Git Signals Hover Section */}
+            <div className="hover-panel-git-signals">
+              <div className="git-signal-row">
+                <span className="signal-label">Bug-Fix Ratio</span>
+                <span className={`signal-value ${hoveredNode.bug_fix_ratio >= 0.5 ? "danger" : "normal"}`}>
+                  {(hoveredNode.bug_fix_ratio * 100).toFixed(0)}%
+                  {hoveredNode.bug_fix_ratio >= 0.5 && " ⚠️"}
+                </span>
+              </div>
+              <div className="git-signal-row">
+                <span className="signal-label">Bus Factor</span>
+                <span className={`signal-value ${hoveredNode.unique_author_count === 1 ? "danger" : "normal"}`}>
+                  {hoveredNode.unique_author_count} ({ (hoveredNode.top_author_pct * 100).toFixed(0)}% top)
+                  {hoveredNode.unique_author_count === 1 && " 🚨"}
+                </span>
+              </div>
+              <div className="git-signal-row">
+                <span className="signal-label">Last Touch</span>
+                <span className={`signal-value ${hoveredNode.days_since_last_commit > 180 ? "danger" : "normal"}`}>
+                  {hoveredNode.days_since_last_commit}d ago
+                </span>
               </div>
             </div>
           </div>

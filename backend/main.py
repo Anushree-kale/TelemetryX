@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
 import os
 from pathlib import Path
+from urllib.parse import unquote
+
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 
 import database
+import post_analysis
 from debt_model import get_scorer
+from graph_builder import graph_from_stored_json
 from tasks import analyze_repo_task
 
 
@@ -121,45 +125,179 @@ def get_jobs_history(repo_url: str):
     return database.get_repo_jobs_history(repo_url)
 
 
-@app.get("/results/{job_id}/graph")
-def get_dependency_graph(job_id: int):
+@app.get("/roadmap/{job_id}")
+def get_roadmap(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    items = database.get_roadmap_items(job_id)
+    return {"job_id": job_id, "items": items}
+
+
+@app.get("/graph/{job_id}")
+def get_graph(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    stored = database.get_dependency_graph(job_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Graph not found for this job")
+
+    modules = database.get_job_modules(job_id)
+    mod_by_path = {m["file_path"]: m for m in modules}
+    graph_json = stored["graph_json"]
+
+    enriched_nodes = []
+    for node in graph_json.get("nodes", []):
+        fp = node.get("id")
+        m = mod_by_path.get(fp, {})
+        enriched_nodes.append({
+            **node,
+            "debt_score": m.get("debt_score"),
+            "priority_score": m.get("priority_score"),
+            "cluster_id": m.get("cluster_id", 0),
+            "in_degree": m.get("in_degree", 0),
+            "is_critical": bool(m.get("is_critical")),
+            "risk_level": m.get("risk_level", "low"),
+        })
+
+    return {
+        "job_id": job_id,
+        "graph_json": {**graph_json, "nodes": enriched_nodes},
+        "node_count": stored["node_count"],
+        "edge_count": stored["edge_count"],
+        "cluster_count": stored["cluster_count"],
+    }
+
+
+@app.get("/graph/{job_id}/node/{file_path:path}")
+def get_graph_node(job_id: int, file_path: str):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    decoded_path = unquote(file_path)
+    stored = database.get_dependency_graph(job_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Graph not found for this job")
+
+    modules = database.get_job_modules(job_id)
+    module = next((m for m in modules if m["file_path"] == decoded_path), None)
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found in graph")
+
+    G = graph_from_stored_json(stored["graph_json"])
+    predecessors = list(G.predecessors(decoded_path)) if decoded_path in G else []
+    successors = list(G.successors(decoded_path)) if decoded_path in G else []
+
+    return {
+        "file_path": decoded_path,
+        "debt_score": module.get("debt_score"),
+        "priority_score": module.get("priority_score"),
+        "in_degree": module.get("in_degree", 0),
+        "out_degree": module.get("out_degree", 0),
+        "downstream_count": module.get("downstream_count", 0),
+        "betweenness": module.get("betweenness", 0),
+        "cluster_id": module.get("cluster_id", 0),
+        "is_critical": bool(module.get("is_critical")),
+        "importers": predecessors,
+        "importees": successors,
+    }
+
+
+class CriticalToggle(BaseModel):
+    is_critical: bool
+
+
+@app.patch("/modules/{module_id}/critical")
+def toggle_module_critical(module_id: int, body: CriticalToggle):
+    result = database.set_module_critical(module_id, body.is_critical)
+    if not result:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    job_id = result["job_id"]
+    post_analysis.run_post_analysis(job_id)
+    items = database.get_roadmap_items(job_id)
+    return {"job_id": job_id, "items": items}
+
+
+@app.get("/clusters/{job_id}")
+def get_clusters(job_id: int):
     job = database.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
     modules = database.get_job_modules(job_id)
+    stored = database.get_dependency_graph(job_id)
+    graph_json = stored["graph_json"] if stored else {"links": []}
 
-    # Map of lowercased file stem to full relative file_path
-    stem_map = {}
+    cross_cluster_edges = 0
+    mod_cluster = {m["file_path"]: m.get("cluster_id", 0) for m in modules}
+    for edge in graph_json.get("links", []):
+        src = edge.get("source")
+        tgt = edge.get("target")
+        if isinstance(src, dict):
+            src, tgt = src.get("id"), tgt.get("id") if isinstance(tgt, dict) else tgt
+        if mod_cluster.get(src) != mod_cluster.get(tgt):
+            cross_cluster_edges += 1
+
+    clusters: dict[int, list] = {}
     for m in modules:
-        file_path = m["file_path"]
-        stem = Path(file_path).stem.lower()
-        stem_map[stem] = file_path
+        cid = m.get("cluster_id", 0)
+        clusters.setdefault(cid, []).append(m)
 
-    nodes = []
-    links = []
-
-    for m in modules:
-        nodes.append({
-            "id": m["file_path"],
-            "name": Path(m["file_path"]).name,
-            "loc": m["lines_of_code"],
-            "debt_score": m["debt_score"],
-            "risk_level": m["risk_level"] or "low"
+    result = []
+    for cid, members in clusters.items():
+        prefixes: dict[str, int] = {}
+        for m in members:
+            parts = m["file_path"].split("/")
+            prefix = "/".join(parts[:-1]) if len(parts) > 1 else "(root)"
+            prefixes[prefix] = prefixes.get(prefix, 0) + 1
+        best_prefix = max(prefixes, key=prefixes.get) if prefixes else "(root)"
+        avg_debt = sum(float(m.get("debt_score") or 0) for m in members) / len(members)
+        top = max(members, key=lambda x: float(x.get("priority_score") or 0))
+        result.append({
+            "cluster_id": cid,
+            "name": best_prefix,
+            "file_count": len(members),
+            "avg_debt_score": round(avg_debt, 2),
+            "highest_priority_file": top["file_path"],
+            "highest_priority_score": top.get("priority_score", 0),
+            "cross_cluster_edge_count": cross_cluster_edges,
+            "files": [m["file_path"] for m in members],
         })
 
-        imports_str = m.get("imports") or ""
-        if imports_str:
-            import_tokens = [i.strip().lower() for i in imports_str.split(",") if i.strip()]
-            for token in import_tokens:
-                if token in stem_map:
-                    target_path = stem_map[token]
-                    if target_path != m["file_path"]:  # Skip self loops
-                        links.append({
-                            "source": m["file_path"],
-                            "target": target_path
-                        })
+    result.sort(key=lambda c: c["avg_debt_score"], reverse=True)
+    return {"job_id": job_id, "clusters": result}
 
+
+@app.get("/results/{job_id}/graph")
+def get_dependency_graph_legacy(job_id: int):
+    """Legacy endpoint — delegates to /graph/{job_id} node-link format."""
+    data = get_graph(job_id)
+    graph_json = data["graph_json"]
+    links = []
+    for edge in graph_json.get("links", []):
+        links.append({
+            "source": edge.get("source"),
+            "target": edge.get("target"),
+            "type": "coupling" if edge.get("type") == "co_change" else "import",
+            "weight": edge.get("weight", 1),
+        })
+    nodes = []
+    for node in graph_json.get("nodes", []):
+        nodes.append({
+            "id": node.get("id"),
+            "name": Path(node.get("id", "")).name,
+            "loc": node.get("lines_of_code"),
+            "debt_score": node.get("debt_score"),
+            "risk_level": node.get("risk_level", "low"),
+            "priority_score": node.get("priority_score"),
+            "cluster_id": node.get("cluster_id", 0),
+            "in_degree": node.get("in_degree", 0),
+            "is_critical": node.get("is_critical", False),
+        })
     return {"nodes": nodes, "links": links}
 
 

@@ -4,16 +4,20 @@ import DebtHeatmap from "./components/DebtHeatmap";
 import MetricsChart from "./components/MetricsChart";
 import ModulesTable from "./components/ModulesTable";
 import SummaryCards from "./components/SummaryCards";
-import DependencyGraph from "./components/DependencyGraph";
+import RoadmapTab from "./components/RoadmapTab";
+import GraphTab from "./components/GraphTab";
+import ClustersTab from "./components/ClustersTab";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./components/Skeletons";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" or "compare"
+  const [intelTab, setIntelTab] = useState("roadmap"); // roadmap | graph | clusters
   const [modules, setModules] = useState([]);
   const [status, setStatus] = useState(null);
   const [repoUrl, setRepoUrl] = useState(null);
+  const [currentJobId, setCurrentJobId] = useState(null);
 
   // Compare Tab State
   const [repoList, setRepoList] = useState([]);
@@ -60,6 +64,7 @@ export default function App() {
     setModules(result.modules || []);
     setStatus(result.status);
     setRepoUrl(result.repo_url);
+    setCurrentJobId(result.job_id ?? null);
   };
 
   const handleCompareSubmit = async (e) => {
@@ -115,7 +120,7 @@ export default function App() {
 
   const isAnalyzing = status === "pending" || status === "running";
   const activeRepoUrl = repoUrl || modules[0]?.repo_url;
-  const currentJobId = modules[0]?.job_id;
+  const jobId = currentJobId ?? modules[0]?.job_id;
 
   return (
     <div>
@@ -192,8 +197,41 @@ export default function App() {
                 <DebtHeatmap modules={modules} />
               </div>
 
-              {currentJobId && (
-                <DependencyGraph jobId={currentJobId} />
+              {jobId && (
+                <div className="card intelligence-panel">
+                  <div className="intel-tabs">
+                    <button
+                      type="button"
+                      className={`intel-tab ${intelTab === "roadmap" ? "active" : ""}`}
+                      onClick={() => setIntelTab("roadmap")}
+                    >
+                      Roadmap
+                    </button>
+                    <button
+                      type="button"
+                      className={`intel-tab ${intelTab === "graph" ? "active" : ""}`}
+                      onClick={() => setIntelTab("graph")}
+                    >
+                      Graph
+                    </button>
+                    <button
+                      type="button"
+                      className={`intel-tab ${intelTab === "clusters" ? "active" : ""}`}
+                      onClick={() => setIntelTab("clusters")}
+                    >
+                      Clusters
+                    </button>
+                  </div>
+                  {intelTab === "roadmap" && (
+                    <RoadmapTab jobId={jobId} apiBase={API_BASE} />
+                  )}
+                  {intelTab === "graph" && (
+                    <GraphTab jobId={jobId} apiBase={API_BASE} />
+                  )}
+                  {intelTab === "clusters" && (
+                    <ClustersTab jobId={jobId} apiBase={API_BASE} />
+                  )}
+                </div>
               )}
 
               <div className="card">
