@@ -86,11 +86,16 @@ class DebtScorer:
         if len(np.unique(y)) < 2:
             y[0] = 1 - y[0]
 
+        n_pos = int(np.sum(y == 1))
+        n_neg = int(np.sum(y == 0))
+        scale_pos_weight = float(n_neg) / float(n_pos) if n_pos > 0 else 1.0
+
         self.model = XGBClassifier(
             n_estimators=150,
             max_depth=6,
             eval_metric="logloss",
             random_state=42,
+            scale_pos_weight=scale_pos_weight,
         )
         self.model.fit(X, y)
         self.save()

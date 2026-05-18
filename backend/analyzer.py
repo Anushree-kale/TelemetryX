@@ -1,4 +1,5 @@
 import ast
+import re
 import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,13 @@ def _cyclomatic_from_radon(source: str) -> float:
     if not blocks:
         return 0.0
     return sum(b.complexity for b in blocks) / len(blocks)
+
+
+def _cyclomatic_from_lizard(analysis) -> float:
+    functions = analysis.function_list
+    if not functions:
+        return 0.0
+    return sum(f.cyclomatic_complexity for f in functions) / len(functions)
 
 
 def _metrics_from_lizard(file_path: str) -> dict[str, float | int]:
@@ -67,32 +75,137 @@ def _count_fan_out(source: str) -> int:
     return len(modules)
 
 
+def _extract_imports_multi(file_path: Path, source: str) -> list[str]:
+    ext = file_path.suffix.lower()
+    if ext == ".py":
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return []
+        modules = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    top = alias.name.split(".")[0]
+                    if top and top != "__future__":
+                        modules.add(top)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    top = node.module.split(".")[0]
+                    if top:
+                        modules.add(top)
+        return sorted(list(modules))
+
+    imports = set()
+    if ext in (".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"):
+        for match in re.finditer(r'\bimport\b.*?from\s+[\'"]([^\'"]+)[\'"]', source):
+            imports.add(match.group(1).split('/')[-1])
+        for match in re.finditer(r'\bimport\s+[\'"]([^\'"]+)[\'"]', source):
+            imports.add(match.group(1).split('/')[-1])
+        for match in re.finditer(r'\brequire\(\s*[\'"]([^\'"]+)[\'"]\s*\)', source):
+            imports.add(match.group(1).split('/')[-1])
+
+    elif ext in (".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh"):
+        for match in re.finditer(r'#include\s*[<"]([^>"]+)[>"]', source):
+            imports.add(Path(match.group(1)).stem)
+
+    elif ext == ".java":
+        for match in re.finditer(r'\bimport\s+([\w\.]+);', source):
+            parts = match.group(1).split('.')
+            if parts:
+                imports.add(parts[-1])
+
+    elif ext == ".go":
+        for match in re.finditer(r'\bimport\s+"([^"]+)"', source):
+            imports.add(match.group(1).split('/')[-1])
+        for match in re.finditer(r'\bimport\s*\(((?:[^)]|\n)*)\)', source):
+            block = match.group(1)
+            for inner in re.finditer(r'"([^"]+)"', block):
+                imports.add(inner.group(1).split('/')[-1])
+
+    elif ext == ".rs":
+        for match in re.finditer(r'\buse\s+([\w_]+)(?:::|;)', source):
+            top = match.group(1)
+            if top and top not in ("std", "core", "alloc", "crate", "self", "super"):
+                imports.add(top)
+
+    elif ext == ".cs":
+        for match in re.finditer(r'\busing\s+([\w\.]+);', source):
+            parts = match.group(1).split('.')
+            if parts:
+                imports.add(parts[-1])
+
+    elif ext == ".php":
+        for match in re.finditer(r'\buse\s+([\w\\]+);', source):
+            parts = match.group(1).split('\\')
+            if parts:
+                imports.add(parts[-1])
+
+    elif ext == ".swift":
+        for match in re.finditer(r'\bimport\s+([\w_]+)', source):
+            imports.add(match.group(1))
+
+    return sorted(list(imports))
+
+
 def is_test_file(rel_path: str) -> bool:
     path = Path(rel_path)
     name = path.name.lower()
     parts = {p.lower() for p in path.parts}
-    return (
-        name.startswith("test_")
-        or name.endswith("_test.py")
-        or "tests" in parts
-        or "test" in parts
-    )
+
+    if "tests" in parts or "test" in parts or "__tests__" in parts or "testing" in parts:
+        return True
+
+    ext = path.suffix.lower()
+    if ext == ".py":
+        return name.startswith("test_") or name.endswith("_test.py")
+    elif ext in (".js", ".ts", ".jsx", ".tsx"):
+        return (
+            name.endswith(".test.js") or name.endswith(".test.ts") or
+            name.endswith(".test.jsx") or name.endswith(".test.tsx") or
+            name.endswith(".spec.js") or name.endswith(".spec.ts") or
+            name.endswith(".spec.jsx") or name.endswith(".spec.tsx") or
+            name.startswith("test.") or name.startswith("spec.")
+        )
+    elif ext == ".go":
+        return name.endswith("_test.go")
+    elif ext == ".java":
+        return name.endswith("test.java") or name.endswith("tests.java")
+    elif ext in (".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh"):
+        return "test" in name or name.startswith("test_")
+    elif ext == ".rs":
+        return "test" in name or name.startswith("test_") or "test" in rel_path
+
+    return "test" in name or "spec" in name
 
 
 def _stem_key(rel_path: str) -> str:
-    return Path(rel_path).stem.replace("test_", "").replace("_test", "").lower()
+    stem = Path(rel_path).stem.lower()
+    for suffix in [".test", ".spec", "_test", "test", "tests"]:
+        if stem.endswith(suffix):
+            stem = stem[:-len(suffix)]
+    if stem.startswith("test_"):
+        stem = stem[5:]
+    elif stem.startswith("test."):
+        stem = stem[5:]
+    return stem.replace("_", "").replace(".", "").strip()
 
 
-def _build_test_loc_index(py_files: list[Path], root: Path) -> dict[str, int]:
+def _build_test_loc_index(source_files: list[Path], root: Path) -> dict[str, int]:
     index: dict[str, int] = {}
-    for py_file in py_files:
-        rel = str(py_file.relative_to(root)).replace("\\", "/")
+    for file in source_files:
+        rel = str(file.relative_to(root)).replace("\\", "/")
         if not is_test_file(rel):
             continue
         try:
-            loc = lizard.analyze_file(str(py_file)).nloc
+            loc = lizard.analyze_file(str(file)).nloc
         except Exception:
-            loc = 0
+            try:
+                # Fallback simple line count
+                source = file.read_text(encoding="utf-8", errors="replace")
+                loc = len([line for line in source.splitlines() if line.strip()])
+            except Exception:
+                loc = 0
         key = _stem_key(rel)
         index[key] = index.get(key, 0) + loc
     return index
@@ -109,34 +222,125 @@ def compute_churn_90d(repo: Repo, rel_path: str) -> int:
         return 0
 
 
+# Native Lizard Ast Parsed Languages (full complexity support)
+LIZARD_NATIVE_EXTENSIONS = {
+    ".py",
+    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+    ".java",
+    ".go",
+    ".rs",  # Rust fully supported natively by Lizard
+    ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh",
+    ".cs",  # C#
+    ".php",
+    ".rb",  # Ruby
+    ".swift",
+    ".m", ".mm",  # Objective-C
+    ".kt", ".kts",  # Kotlin
+    ".scala",
+    ".lua",
+    ".gd",  # GDScript
+    ".ttcn3",
+}
+
+# 30+ Programming, scripting, markup and configuration languages
+SUPPORTED_EXTENSIONS = LIZARD_NATIVE_EXTENSIONS.union({
+    # Shell & scripting languages
+    ".sh", ".bash",
+    ".ps1",
+    # Database
+    ".sql",
+    # Other languages
+    ".dart",
+    ".pl", ".pm",  # Perl
+    ".r",
+    ".hs",  # Haskell
+    ".clj", ".cljs",  # Clojure
+    ".ex", ".exs",  # Elixir
+    ".erl", ".hrl",  # Erlang
+    ".groovy",
+    ".jl",  # Julia
+    ".sol",  # Solidity
+    ".zig",
+    ".fs", ".fsi",  # F#
+    # Markup and documents
+    ".html", ".htm",
+    ".css", ".scss", ".sass", ".less",
+    ".yaml", ".yml",
+    ".json",
+    ".md",
+})
+
+
 def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[dict[str, Any]]:
     root = Path(repo_path)
-    py_files = [
+    all_files = []
+    for ext in SUPPORTED_EXTENSIONS:
+        all_files.extend(root.rglob(f"*{ext}"))
+
+    source_files = [
         p
-        for p in root.rglob("*.py")
+        for p in all_files
         if not any(part.startswith(".") for part in p.parts)
     ]
-    test_loc_index = _build_test_loc_index(py_files, root)
+    test_loc_index = _build_test_loc_index(source_files, root)
     results: list[dict[str, Any]] = []
 
-    for py_file in py_files:
-        rel_path = str(py_file.relative_to(root)).replace("\\", "/")
+    for file in source_files:
+        rel_path = str(file.relative_to(root)).replace("\\", "/")
         if is_test_file(rel_path):
             continue
 
         try:
-            source = py_file.read_text(encoding="utf-8", errors="replace")
+            source = file.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
 
-        cyclomatic = _cyclomatic_from_radon(source)
-        lizard_metrics = _metrics_from_lizard(str(py_file))
+        ext = file.suffix.lower()
+
+        # 1. Cyclomatic & AST metric calculations
+        if ext == ".py":
+            cyclomatic = _cyclomatic_from_radon(source)
+            try:
+                lizard_metrics = _metrics_from_lizard(str(file))
+            except Exception:
+                lizard_metrics = {
+                    "cognitive_complexity": 1.0,
+                    "lines_of_code": len([line for line in source.splitlines() if line.strip()]),
+                    "function_count": 0,
+                    "max_fn_complexity": 0,
+                }
+        elif ext in LIZARD_NATIVE_EXTENSIONS:
+            try:
+                lizard_analysis = lizard.analyze_file(str(file))
+                cyclomatic = _cyclomatic_from_lizard(lizard_analysis)
+                lizard_metrics = _metrics_from_lizard(str(file))
+            except Exception:
+                cyclomatic = 1.0
+                lizard_metrics = {
+                    "cognitive_complexity": 1.0,
+                    "lines_of_code": len([line for line in source.splitlines() if line.strip()]),
+                    "function_count": 0,
+                    "max_fn_complexity": 0,
+                }
+        else:
+            # Safe Fallback for non-AST languages (like SQL, HTML, CSS, JSON, YAML)
+            cyclomatic = 1.0
+            nloc = len([line for line in source.splitlines() if line.strip()])
+            lizard_metrics = {
+                "cognitive_complexity": 1.0,
+                "lines_of_code": max(1, nloc),
+                "function_count": 0,
+                "max_fn_complexity": 0,
+            }
+
         source_loc = max(1, int(lizard_metrics["lines_of_code"]))
         stem_key = _stem_key(rel_path)
         test_loc = test_loc_index.get(stem_key, 0)
         coverage_ratio = round(min(1.0, test_loc / source_loc), 4)
 
         churn = compute_churn_90d(git_repo, rel_path) if git_repo else 0
+
+        imports_list = _extract_imports_multi(file, source)
 
         results.append(
             {
@@ -146,7 +350,8 @@ def analyze_python_files(repo_path: str, git_repo: Repo | None = None) -> list[d
                 "lines_of_code": lizard_metrics["lines_of_code"],
                 "function_count": lizard_metrics["function_count"],
                 "max_fn_complexity": lizard_metrics["max_fn_complexity"],
-                "fan_out": _count_fan_out(source),
+                "fan_out": len(imports_list),
+                "imports": ",".join(imports_list),
                 "churn_90d": churn,
                 "test_coverage_ratio": coverage_ratio,
             }

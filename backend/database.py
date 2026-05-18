@@ -5,6 +5,7 @@ from typing import Any
 
 import psycopg2
 import psycopg2.extras
+from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS module_metrics (
     fan_out INTEGER DEFAULT 0,
     debt_score FLOAT,
     roi_days FLOAT,
-    risk_level TEXT
+    risk_level TEXT,
+    imports TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS shap_explanations (
@@ -63,16 +65,34 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS fan_out INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS debt_score FLOAT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS roi_days FLOAT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS risk_level TEXT;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS imports TEXT DEFAULT '';
 """
 
 
+_pool = None
+
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        minconn = int(os.getenv("DB_POOL_MIN", "2"))
+        maxconn = int(os.getenv("DB_POOL_MAX", "20"))
+        _pool = ThreadedConnectionPool(minconn, maxconn, DATABASE_URL)
+    return _pool
+
+
 def get_connection():
-    return psycopg2.connect(DATABASE_URL)
+    return get_pool().getconn()
+
+
+def put_connection(conn):
+    get_pool().putconn(conn)
 
 
 @contextmanager
 def get_cursor(dict_cursor: bool = False):
-    conn = get_connection()
+    pool = get_pool()
+    conn = pool.getconn()
     try:
         factory = psycopg2.extras.RealDictCursor if dict_cursor else None
         cur = conn.cursor(cursor_factory=factory)
@@ -83,7 +103,7 @@ def get_cursor(dict_cursor: bool = False):
         raise
     finally:
         cur.close()
-        conn.close()
+        pool.putconn(conn)
 
 
 def init_schema() -> None:
@@ -153,15 +173,15 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                 INSERT INTO module_metrics (
                     job_id, file_path, cyclomatic_complexity, cognitive_complexity,
                     lines_of_code, function_count, churn_90d, test_coverage_ratio,
-                    max_fn_complexity, fan_out, debt_score, roi_days, risk_level
+                    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports
                 ) VALUES (
                     %(job_id)s, %(file_path)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
                     %(churn_90d)s, %(test_coverage_ratio)s, %(max_fn_complexity)s,
-                    %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s
+                    %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s
                 ) RETURNING id
                 """,
-                {**m, "job_id": job_id},
+                {**m, "job_id": job_id, "imports": m.get("imports", "")},
             )
             module_ids.append(cur.fetchone()[0])
     return module_ids
@@ -207,6 +227,7 @@ def _attach_reasons(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not module_ids:
         for m in modules:
             m["reasons"] = []
+            m["summary"] = ""
         return modules
 
     with get_cursor(dict_cursor=True) as cur:
@@ -229,12 +250,17 @@ def _attach_reasons(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "feature": row["feature"],
                 "contribution_pct": float(row["contribution_pct"]),
                 "value": row["display_value"],
+                "display_value": row["display_value"],
                 "shap_value": float(row["shap_value"]),
             }
         )
 
+    from explain import reasons_to_text
+
     for m in modules:
-        m["reasons"] = by_module.get(m.get("id"), [])[:3]
+        reasons_list = by_module.get(m.get("id"), [])[:3]
+        m["reasons"] = reasons_list
+        m["summary"] = " ".join(reasons_to_text(reasons_list))
     return modules
 
 
@@ -244,7 +270,7 @@ def get_job_modules(job_id: int) -> list[dict[str, Any]]:
             """
             SELECT id, file_path, cyclomatic_complexity, cognitive_complexity,
                    lines_of_code, function_count, churn_90d, test_coverage_ratio,
-                   max_fn_complexity, fan_out, debt_score, roi_days, risk_level
+                   max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports
             FROM module_metrics
             WHERE job_id = %s
             ORDER BY debt_score DESC NULLS LAST
@@ -285,3 +311,83 @@ def get_all_metrics_for_training() -> list[dict[str, Any]]:
             """
         )
         return [dict(row) for row in cur.fetchall()]
+
+
+def get_repo_jobs_history(repo_url: str) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT j.id, j.created_at,
+                   COALESCE(AVG(m.debt_score), 0) AS avg_debt_score,
+                   COALESCE(SUM(m.lines_of_code), 0) AS total_loc,
+                   COALESCE(SUM(CASE WHEN m.risk_level = 'high' THEN 1 ELSE 0 END), 0) AS high_risk_count,
+                   COALESCE(AVG(m.test_coverage_ratio), 0) AS avg_test_coverage,
+                   COUNT(m.id) AS file_count
+            FROM analysis_jobs j
+            LEFT JOIN module_metrics m ON m.job_id = j.id
+            WHERE j.repo_url = %s AND j.status = 'complete'
+            GROUP BY j.id, j.created_at
+            ORDER BY j.created_at ASC
+            """,
+            (repo_url,),
+        )
+        rows = cur.fetchall()
+
+    result = []
+    for r in rows:
+        row_dict = dict(r)
+        if row_dict["created_at"]:
+            row_dict["created_at"] = row_dict["created_at"].isoformat()
+        row_dict["avg_debt_score"] = float(row_dict["avg_debt_score"])
+        row_dict["total_loc"] = int(row_dict["total_loc"])
+        row_dict["high_risk_count"] = int(row_dict["high_risk_count"])
+        row_dict["avg_test_coverage"] = float(row_dict["avg_test_coverage"])
+        row_dict["file_count"] = int(row_dict["file_count"])
+        result.append(row_dict)
+    return result
+
+
+def get_repo_urls_list() -> list[str]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT repo_url 
+            FROM analysis_jobs 
+            WHERE status = 'complete'
+            ORDER BY repo_url ASC
+            """
+        )
+        return [r[0] for r in cur.fetchall()]
+
+
+def get_last_completed_job_for_repo(repo_url: str) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, repo_url, created_at, status
+            FROM analysis_jobs
+            WHERE repo_url = %s AND status = 'complete'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (repo_url,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def get_active_job_for_repo(repo_url: str) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, status, progress_pct, progress_message 
+            FROM analysis_jobs
+            WHERE repo_url = %s AND status IN ('pending', 'running')
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (repo_url,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+

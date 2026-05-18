@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import ModuleDetailDrawer from "./ModuleDetailDrawer";
 
 const COLUMNS = [
@@ -24,11 +24,14 @@ const RISK_COLORS = {
   low: "#22c55e",
 };
 
+const ITEMS_PER_PAGE = 25;
+
 export default function ModulesTable({ modules }) {
   const [sortKey, setSortKey] = useState("debt_score");
   const [sortDir, setSortDir] = useState("desc");
   const [riskFilter, setRiskFilter] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filtered = useMemo(() => {
     if (riskFilter === "all") return modules;
@@ -52,6 +55,17 @@ export default function ModulesTable({ modules }) {
     });
     return copy;
   }, [filtered, sortKey, sortDir]);
+
+  // Reset page when filtering or sorting changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [riskFilter, sortKey, sortDir, modules]);
+
+  const pageCount = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginated = useMemo(() => {
+    return sorted.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [sorted, startIndex]);
 
   const handleSort = (key) => {
     if (key === "file_path") return;
@@ -107,7 +121,7 @@ export default function ModulesTable({ modules }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row, i) => (
+            {paginated.map((row, i) => (
               <tr
                 key={`${row.file_path}-${row.job_id ?? row.id ?? i}`}
                 className="module-row"
@@ -141,6 +155,28 @@ export default function ModulesTable({ modules }) {
           </tbody>
         </table>
       </div>
+
+      {pageCount > 1 && (
+        <div className="pagination">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {pageCount}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+            disabled={currentPage === pageCount}
+            className="pagination-btn"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ModuleDetailDrawer module={selected} onClose={() => setSelected(null)} />
     </>
