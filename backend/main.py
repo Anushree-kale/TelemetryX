@@ -25,6 +25,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="TelemetryX", version="0.2.0", lifespan=lifespan)
 
 _default_cors = ["http://localhost:3000", "http://localhost:5173"]
+# Comma-separated extra origins, e.g. CORS_ALLOW_ORIGINS=https://app.example.com,https://staging.example.com
 _extra_origins = [
     o.strip()
     for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")

@@ -620,9 +620,15 @@ def set_module_critical(module_id: int, is_critical: bool) -> dict[str, Any] | N
 def get_all_modules() -> list[dict[str, Any]]:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
-            f"""
+            """
             SELECT
-                {_MODULE_COLUMNS},
+                m.id, m.file_path, m.cyclomatic_complexity, m.cognitive_complexity,
+                m.lines_of_code, m.function_count, m.churn_90d,
+                m.test_coverage_ratio, m.max_fn_complexity, m.fan_out,
+                m.debt_score, m.roi_days, m.risk_level, m.imports,
+                m.commit_timestamps, m.unique_author_count, m.top_author_pct, m.bug_fix_ratio,
+                m.days_since_last_commit, m.co_changes, m.in_degree, m.out_degree, m.betweenness,
+                m.cluster_id, m.downstream_count, m.is_critical, m.priority_score,
                 j.repo_url, j.id AS job_id
             FROM module_metrics m
             JOIN analysis_jobs j ON j.id = m.job_id

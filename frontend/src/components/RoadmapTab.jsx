@@ -45,7 +45,7 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
       "",
       "*Acceptance Criteria:*",
       "- Cyclomatic complexity reduced",
-      "- Test coverage > 60%",
+      "- Test file ratio improved (tests vs. source lines)",
       "- Debt score < 40",
     ].join("\n");
     navigator.clipboard.writeText(`${title}\n\n${body}`);
@@ -98,6 +98,11 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
         </details>
       )}
       <p className="roadmap-reason">{item.reason}</p>
+      {item.summary ? (
+        <p className="roadmap-summary" title={item.summary}>
+          {item.summary}
+        </p>
+      ) : null}
       <div className="roadmap-actions">
         <span className="roadmap-fix-hours">{item.fix_hours?.toFixed(0)}h est.</span>
         <button type="button" className="btn-jira" onClick={copyJira}>

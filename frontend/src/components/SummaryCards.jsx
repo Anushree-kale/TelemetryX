@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ResponsiveContainer, LineChart, Line } from "recharts";
+import SectionHint from "./SectionHint";
 
 export default function SummaryCards({ modules, repoUrl, apiBase = "http://localhost:8000" }) {
   const [history, setHistory] = useState([]);
@@ -40,59 +41,73 @@ export default function SummaryCards({ modules, repoUrl, apiBase = "http://local
       value: String(modules.length),
       sub: "Total files parsed",
       sparklineData: history.map((h) => ({ value: h.file_count })),
-      sparklineColor: "#3b82f6", // blue
+      sparklineColor: "#3b82f6",
     },
     {
       label: "Avg debt score",
       value: avgDebt.toFixed(1),
-      sub: "0–100 scale",
+      sub: "0–100 · higher = more rework pressure",
       sparklineData: history.map((h) => ({ value: h.avg_debt_score })),
       sparklineColor: avgDebt >= 60 ? "#ef4444" : avgDebt >= 35 ? "#f59e0b" : "#10b981",
     },
     {
-      label: "High risk modules",
+      label: "High-risk modules",
       value: String(highRiskCount),
       sub: highest ? `Max score: ${highest.debt_score?.toFixed(1)}` : "None",
       sparklineData: history.map((h) => ({ value: h.high_risk_count })),
-      sparklineColor: "#f59e0b", // amber
+      sparklineColor: "#f59e0b",
     },
     {
       label: "Est. refactor days (high risk)",
       value: `~${highDebtRoi.toFixed(1)}`,
-      sub: "Cumulative high-debt ROI",
-      sparklineData: history.map((h) => ({ value: h.avg_test_coverage * 100 })), // coverage trend sparkline!
-      sparklineColor: "#10b981", // green
+      sub: "Cumulative ROI hint for high-risk files only",
+      sparklineData: history.map((h) => ({ value: h.high_risk_count })),
+      sparklineColor: "#94a3b8",
     },
   ];
 
   return (
-    <div className="summary-grid">
-      {cards.map((c) => (
-        <div key={c.label} className="summary-card flex-col">
-          <div className="flex justify-between items-start w-full">
-            <div className="flex flex-col">
-              <span className="summary-label">{c.label}</span>
-              <span className="summary-value">{c.value}</span>
+    <section className="summary-cards-section" aria-label="Repository snapshot">
+      <div className="summary-grid-heading">
+        <h2 className="summary-grid-title">Snapshot metrics</h2>
+        <SectionHint label="Reading these cards">
+          <p>
+            <strong>Debt score</strong> is a 0–100 model output: higher means the file looks harder
+            to change safely (complexity, churn, thin tests-on-disk, etc.).{" "}
+            <strong>High risk</strong> uses the same model thresholds as the table.{" "}
+            <strong>Refactor days</strong> sums per-file ROI hints for high-risk items—treat it as
+            directional, not a project plan.
+          </p>
+        </SectionHint>
+      </div>
+      <div className="summary-grid">
+        {cards.map((c) => (
+          <div key={c.label} className="summary-card flex-col">
+            <div className="flex justify-between items-start w-full">
+              <div className="flex flex-col">
+                <span className="summary-label">{c.label}</span>
+                <span className="summary-value">{c.value}</span>
+              </div>
+              {c.sub && <span className="summary-sub text-right">{c.sub}</span>}
             </div>
-            {c.sub && <span className="summary-sub text-right">{c.sub}</span>}
+            {history.length >= 2 && c.sparklineData && c.sparklineData.length >= 2 && (
+              <div className="sparkline-wrapper" style={{ width: "100%", height: 35, marginTop: 12 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={c.sparklineData}>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke={c.sparklineColor}
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
-          {history.length >= 2 && c.sparklineData && c.sparklineData.length >= 2 && (
-            <div className="sparkline-wrapper" style={{ width: "100%", height: 35, marginTop: 12 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={c.sparklineData}>
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke={c.sparklineColor}
-                    strokeWidth={1.5}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 }

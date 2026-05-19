@@ -41,6 +41,9 @@ function DebtGauge({ score }) {
         {pct.toFixed(0)}
       </div>
       <span className="gauge-label">Debt score</span>
+      <p className="gauge-sublabel">
+        0 = healthiest, 100 = strongest rework pressure (model estimate)
+      </p>
     </div>
   );
 }
@@ -74,7 +77,7 @@ export default function ModuleDetailDrawer({ module, onClose }) {
     ["Cyclomatic", module.cyclomatic_complexity?.toFixed(2)],
     ["Cognitive", module.cognitive_complexity?.toFixed(2)],
     ["Churn (90d)", module.churn_90d],
-    ["Test coverage", `${((module.test_coverage_ratio ?? 0) * 100).toFixed(0)}%`],
+    ["Test file ratio (lines in tests ÷ lines in source)", `${((module.test_coverage_ratio ?? 0) * 100).toFixed(0)}%`],
     ["LOC", module.lines_of_code],
     ["Functions", module.function_count],
     ["Max fn complexity", module.max_fn_complexity],
@@ -140,14 +143,14 @@ export default function ModuleDetailDrawer({ module, onClose }) {
 
         {module.summary && (
           <section className="drawer-section">
-            <h4>SHAP narrative</h4>
+            <h4>Plain-language story</h4>
             <p className="drawer-summary-text">{module.summary}</p>
           </section>
         )}
 
         {reasons.length > 0 && (
           <section className="drawer-section">
-            <h4>Top SHAP contributors</h4>
+            <h4>Top model drivers (SHAP)</h4>
             <ResponsiveContainer width="100%" height={reasons.length * 44 + 16}>
               <BarChart
                 data={reasons}

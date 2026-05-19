@@ -70,8 +70,8 @@ export default function HistoryTrends({ repoUrl, apiBase }) {
       <div className="card">
         <h2>Historical trends</h2>
         <p className="card-hint">
-          Complete at least two analyses of this repository to see debt, risk count, and
-          coverage trends over time.
+          Complete at least two analyses of this repository to see debt, risk count, and test-file
+          ratio trends over time.
         </p>
       </div>
     );
@@ -125,7 +125,7 @@ export default function HistoryTrends({ repoUrl, apiBase }) {
         </div>
       </div>
       <div className="trends-chart-block">
-        <h3 className="trends-subtitle">Scale &amp; test coverage</h3>
+        <h3 className="trends-subtitle">Scale &amp; test file ratio</h3>
         <div className="trends-chart" style={{ height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -156,7 +156,7 @@ export default function HistoryTrends({ repoUrl, apiBase }) {
                 yAxisId="right"
                 type="monotone"
                 dataKey="coveragePct"
-                name="Avg coverage %"
+                name="Avg test file ratio %"
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={{ r: 3 }}
@@ -164,6 +164,10 @@ export default function HistoryTrends({ repoUrl, apiBase }) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <p className="card-hint small muted">
+          “Avg test file ratio %” is test-line volume ÷ source-line volume per scan—not JaCoCo or
+          pytest-cov coverage.
+        </p>
         <p className="card-hint small muted">
           Module count per scan: {rows.map((r) => r.fileCount).join(" → ")}
         </p>

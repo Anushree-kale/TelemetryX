@@ -84,8 +84,9 @@ export default function CoChangeTab({ jobId, apiBase }) {
   return (
     <div className="co-change-tab">
       <p className="card-hint co-change-intro">
-        Files that frequently change together (strong coupling). Dashed purple edges in the
-        graph use the same data. Showing {display.length} of {pairs.length} pairs.
+        Pairs of files edited in the same commit often (change coupling). Think: “if I touch A, I
+        probably need to touch B.” Same data as dashed purple edges in the dependency map. Showing{" "}
+        {display.length} of {pairs.length} pairs.
       </p>
       <div className="co-change-table-wrap">
         <table className="co-change-table">
@@ -98,7 +99,7 @@ export default function CoChangeTab({ jobId, apiBase }) {
                 File B{indicator("file_b")}
               </th>
               <th onClick={() => toggleSort("co_change_count")} className="sortable right">
-                Shared commits{indicator("co_change_count")}
+                Times changed together{indicator("co_change_count")}
               </th>
             </tr>
           </thead>
