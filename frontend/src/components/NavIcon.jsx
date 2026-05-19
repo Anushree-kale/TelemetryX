@@ -1,0 +1,59 @@
+const ICONS = {
+  home: <path d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9.5z" />,
+  ticket: (
+    <path d="M4 6a2 2 0 012-2h12v4a2 2 0 010 4v4a2 2 0 010 4H6a2 2 0 01-2-2V6zm4 0v12M14 8v1M14 15v1" />
+  ),
+  chart: (
+    <>
+      <line x1="5" y1="19" x2="5" y2="9" strokeWidth="2" strokeLinecap="round" />
+      <line x1="12" y1="19" x2="12" y2="5" strokeWidth="2" strokeLinecap="round" />
+      <line x1="19" y1="19" x2="19" y2="12" strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1" />
+      <rect x="13" y="4" width="7" height="7" rx="1" />
+      <rect x="4" y="13" width="7" height="7" rx="1" />
+      <rect x="13" y="13" width="7" height="7" rx="1" />
+    </>
+  ),
+  folder: <path d="M4 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />,
+  graph: (
+    <>
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <circle cx="18" cy="18" r="2" />
+      <path d="M8 17l8-8M8 17h8" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </>
+  ),
+  cluster: (
+    <>
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="16" cy="8" r="3" />
+      <circle cx="12" cy="16" r="3" />
+    </>
+  ),
+  link: (
+    <path d="M10 14a4 4 0 005.66 0l2-2a4 4 0 00-5.66-5.66l-1 1M14 10a4 4 0 00-5.66 0l-2 2a4 4 0 005.66 5.66l1-1" />
+  ),
+};
+
+export default function NavIcon({ name, size = 20 }) {
+  const content = ICONS[name];
+  if (!content) return null;
+  const strokeOnly = name === "chart" || name === "graph";
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={strokeOnly ? "none" : "currentColor"}
+      stroke={strokeOnly ? "currentColor" : "none"}
+      strokeWidth={strokeOnly ? 2 : 0}
+      aria-hidden
+    >
+      {content}
+    </svg>
+  );
+}

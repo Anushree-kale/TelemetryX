@@ -1,0 +1,43 @@
+---
+description: Professional UI copy standards for TelemetryX frontend
+globs: frontend/src/**/*
+alwaysApply: false
+---
+
+# TelemetryX frontend copy
+
+When writing or editing user-facing text in the TelemetryX frontend, use **professional, company-aligned language** suitable for engineering leaders, platform teams, and enterprise stakeholders.
+
+## Tone
+
+- Clear, direct, and respectful — not casual, slang-heavy, or playful in product labels
+- Explain metrics in plain English without dumbing down precision
+- Avoid Gen Z / social phrasing ("vibe", "tea", "mess score", "spicy", "main character energy", emojis in headings)
+- Mascot (orange cat) is allowed for motion/branding only — **labels and data copy stay professional**
+
+## Preferred terminology
+
+| Use | Avoid |
+|-----|--------|
+| Technical debt / debt score | Mess score, pain score |
+| Risk level (High / Medium / Low) | Vibe, alarm, chill |
+| Churn (90d) | Edit spam |
+| Bug-fix ratio | Bug-fix energy |
+| Cyclomatic complexity | Brain melt |
+| Remediation / fix roadmap | Fix list (informal) |
+| Downstream impact / blast radius | Ripple zone |
+| Analyze / Run analysis | Scan repo (unless button is intentionally short) |
+| Executive summary / Overview | The tea, at a glance (casual) |
+
+## Structure
+
+- Centralize strings in `frontend/src/labels.js` when shared across components
+- Section titles: noun phrases ("Remediation plan", "Module inventory")
+- Hints: one sentence, actionable where possible
+- Error messages: state what failed and what to do next
+
+## Examples
+
+**Good:** "3 modules are classified as high risk. Priority file: `src/api/handler.py` (debt score 72)."
+
+**Bad:** "3 files are giving main-character energy. Spiciest: handler.py."

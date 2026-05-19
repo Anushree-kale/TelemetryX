@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import ModuleDetailDrawer from "./ModuleDetailDrawer";
-import { COLUMN_LABELS, GLOSSARY, RISK_LABELS } from "../friendlyLabels";
+import { COLUMN_LABELS, GLOSSARY, RISK_LABELS, RISK_FILTERS } from "../labels";
 
 const COLUMNS = Object.keys(COLUMN_LABELS).map((key) => ({
   key,
@@ -9,13 +9,6 @@ const COLUMNS = Object.keys(COLUMN_LABELS).map((key) => ({
     key === "file_path" ? "left" : key === "risk_level" ? "center" : "right",
   sortable: key !== "file_path",
 }));
-
-const RISK_FILTERS = [
-  { id: "all", label: "All vibes" },
-  { id: "high", label: "Needs love" },
-  { id: "medium", label: "Keep watch" },
-  { id: "low", label: "Chill" },
-];
 
 const RISK_COLORS = {
   high: "#ef4444",
@@ -144,7 +137,7 @@ export default function ModulesTable({ modules }) {
       </details>
 
       <div className="table-toolbar">
-        <span className="toolbar-label">Vibe filter</span>
+        <span className="toolbar-label">Risk filter</span>
         {RISK_FILTERS.map((f) => (
           <button
             key={f.id}

@@ -1,33 +1,58 @@
-import { PANELS } from "../friendlyLabels";
+import OrangeCat from "./OrangeCat";
+import NavIcon from "./NavIcon";
+import { PANELS } from "../labels";
 
-export default function SideNav({ activePanel, onSelect, hasData, disabled }) {
+export default function SideNav({
+  activePanel,
+  onSelect,
+  expanded,
+  disabled,
+  showCat,
+}) {
   return (
-    <nav className="side-nav" aria-label="Report sections">
-      <p className="side-nav-heading">Your repo</p>
-      <ul className="side-nav-list">
-        {PANELS.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              className={`side-nav-btn ${activePanel === p.id ? "active" : ""}`}
-              onClick={() => onSelect(p.id)}
-              disabled={disabled && p.id !== "overview"}
-              title={p.hint}
-            >
-              <span className="side-nav-icon" aria-hidden>
-                {p.icon}
-              </span>
-              <span className="side-nav-text">
-                <span className="side-nav-label">{p.label}</span>
-                <span className="side-nav-hint">{p.hint}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {!hasData && (
-        <p className="side-nav-foot">Scan a repo first — panels unlock after analysis.</p>
+    <aside
+      className={`side-rail ${expanded ? "side-rail--expanded" : "side-rail--collapsed"}`}
+      aria-label="Analysis navigation"
+    >
+      <div className="side-rail-brand" title="TelemetryX">
+        <span className="side-rail-logo">TX</span>
+      </div>
+
+      {showCat && expanded && (
+        <div className="side-rail-cat">
+          <OrangeCat variant="sitting" />
+        </div>
       )}
-    </nav>
+
+      <nav className="side-rail-nav">
+        <ul className="side-rail-list">
+          {PANELS.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                className={`side-rail-btn ${activePanel === p.id ? "active" : ""}`}
+                onClick={() => onSelect(p.id)}
+                disabled={disabled && p.id !== "overview"}
+                title={p.hint}
+              >
+                <span className="side-rail-icon-wrap">
+                  <NavIcon name={p.icon} />
+                </span>
+                {expanded && (
+                  <span className="side-rail-labels">
+                    <span className="side-rail-label">{p.label}</span>
+                    <span className="side-rail-hint">{p.hint}</span>
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {expanded && disabled && (
+        <p className="side-rail-foot">Run an analysis to unlock all sections.</p>
+      )}
+    </aside>
   );
 }

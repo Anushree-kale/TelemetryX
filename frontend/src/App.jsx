@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import CompareWorkspace from "./components/CompareWorkspace";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
-import { APP_TAGLINE } from "./friendlyLabels";
+import { APP_TAGLINE } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -23,8 +23,10 @@ export default function App() {
     refreshRepoList();
   }, [refreshRepoList]);
 
+  const isDashboard = activeTab === "dashboard";
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isDashboard ? " app-shell--dashboard" : ""}`}>
       <header className="app-header">
         <div className="app-brand">
           <h1>TelemetryX</h1>
@@ -36,7 +38,7 @@ export default function App() {
             className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
             onClick={() => setActiveTab("dashboard")}
           >
-            Scan repo
+            Analyse
           </button>
           <button
             type="button"

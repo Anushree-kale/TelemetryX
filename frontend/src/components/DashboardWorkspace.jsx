@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AnalyzeForm from "./AnalyzeForm";
 import DebtHeatmap from "./DebtHeatmap";
 import MetricsChart from "./MetricsChart";
@@ -14,21 +14,11 @@ import ShapJobSummary from "./ShapJobSummary";
 import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
-import HomeHero from "./HomeHero";
-import HealthReceipt from "./HealthReceipt";
+import OrangeCat from "./OrangeCat";
+import { PANEL_TITLES } from "../labels";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
-const PANEL_TITLES = {
-  overview: "Home — quick snapshot",
-  fixes: "Fix list — Jira-ready tickets",
-  charts: "Charts — trends & brain-melt scores",
-  heatmap: "Heatmap — where the pain lives",
-  files: "All files — full breakdown",
-  graph: "Web map — how files connect",
-  clusters: "Squads — files that hang together",
-  cochange: "Buddy files — change in sync",
-};
-
+/** landing → scanning → results → sidebar-ready */
 export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }) {
   const [activePanel, setActivePanel] = useState("overview");
   const [modules, setModules] = useState([]);
@@ -37,15 +27,26 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const [currentJobId, setCurrentJobId] = useState(null);
   const [modulesLoading, setModulesLoading] = useState(true);
 
+  const [uiPhase, setUiPhase] = useState("landing");
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [catPhase, setCatPhase] = useState("on-card");
+  const walkTimerRef = useRef(null);
+
   const fetchAllModules = useCallback(async () => {
     setModulesLoading(true);
     try {
       const res = await fetch(`${apiBase}/modules`);
       if (!res.ok) return;
       const data = await res.json();
-      setModules(data.modules || []);
+      const list = data.modules || [];
+      setModules(list);
+      if (list.length > 0) {
+        setUiPhase("results");
+        setSidebarExpanded(true);
+        setCatPhase("on-sidebar");
+      }
     } catch {
-      /* ignore on initial load */
+      /* ignore */
     } finally {
       setModulesLoading(false);
     }
@@ -53,7 +54,18 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
   useEffect(() => {
     fetchAllModules();
+    return () => {
+      if (walkTimerRef.current) clearTimeout(walkTimerRef.current);
+    };
   }, [fetchAllModules]);
+
+  const startCatWalk = useCallback(() => {
+    setCatPhase("walking");
+    walkTimerRef.current = setTimeout(() => {
+      setSidebarExpanded(true);
+      setCatPhase("on-sidebar");
+    }, 1600);
+  }, []);
 
   const handleAnalysisComplete = (result) => {
     setModules(result.modules || []);
@@ -62,6 +74,16 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     setCurrentJobId(result.job_id ?? null);
     onReposChanged?.();
     setActivePanel("overview");
+    setUiPhase("results");
+    if (result.modules?.length) {
+      startCatWalk();
+    }
+  };
+
+  const handleAnalyzeStart = () => {
+    setUiPhase("scanning");
+    setCatPhase("on-card");
+    setSidebarExpanded(false);
   };
 
   const isAnalyzing = status === "pending" || status === "running";
@@ -69,63 +91,65 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const jobId = currentJobId ?? modules[0]?.job_id;
   const showResultsSkeleton = modulesLoading || isAnalyzing;
   const hasModules = modules.length > 0;
+  const showResults = uiPhase === "results" && hasModules && !showResultsSkeleton;
+  const scanCompact = uiPhase === "scanning" || uiPhase === "results";
+
+  const handleStatusChange = (s) => {
+    setStatus(s);
+    if (s === "failed") {
+      setUiPhase("landing");
+      setCatPhase("on-card");
+      setSidebarExpanded(false);
+    }
+  };
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-shell">
       <SideNav
         activePanel={activePanel}
         onSelect={setActivePanel}
-        hasData={hasModules}
+        expanded={sidebarExpanded}
         disabled={!hasModules}
+        showCat={catPhase === "on-sidebar"}
       />
 
-      <div className="dashboard-main">
-        <section className="card home-scan-card">
-          <AnalyzeForm
-            apiBase={apiBase}
-            knownRepos={repoList}
-            onComplete={handleAnalysisComplete}
-            onStatusChange={setStatus}
-          />
-          {status && status !== "running" && (
-            <p className={`status ${status}`}>
-              {status === "complete" && activeRepoUrl && `Done — ${activeRepoUrl}`}
-              {status === "failed" && "Scan failed. Double-check the GitHub link and try again."}
-              {status === "pending" && "Queued… hang tight"}
-            </p>
-          )}
+      <div className="dashboard-stage">
+        <section
+          className={`scan-stage ${scanCompact ? "scan-stage--compact" : "scan-stage--centered"}`}
+        >
+          <div className="scan-card">
+            {catPhase === "on-card" && (
+              <div className="scan-card-cat">
+                <OrangeCat variant="sitting" />
+              </div>
+            )}
 
-          {hasModules && !showResultsSkeleton && (
-            <>
-              <HomeHero modules={modules} />
-              <p className="panel-hint">
-                <strong>Want the tea?</strong> Use the left panels for charts, Jira-style fix tickets,
-                heatmaps, and file-by-file details.
-              </p>
-            </>
-          )}
+            <AnalyzeForm
+              apiBase={apiBase}
+              knownRepos={repoList}
+              onComplete={handleAnalysisComplete}
+              onStatusChange={handleStatusChange}
+              onAnalyzeStart={handleAnalyzeStart}
+              compact={scanCompact}
+            />
+          </div>
         </section>
 
-        {showResultsSkeleton && (
-          <>
-            <SummaryCardsSkeleton />
-            <ModulesTableSkeleton />
-          </>
-        )}
-
-        {!showResultsSkeleton && !hasModules && (
-          <div className="empty-state card">
-            <div className="empty-state-icon">🔗</div>
-            <h2>Drop a GitHub link to start</h2>
-            <p>
-              We&apos;ll scan your repo for messy files, bug-fix energy, edit spam (churn), and
-              what to fix first — no PhD required.
-            </p>
+        {catPhase === "walking" && (
+          <div className="cat-walker" aria-hidden>
+            <OrangeCat variant="walking" />
           </div>
         )}
 
-        {!showResultsSkeleton && hasModules && (
-          <>
+        {showResultsSkeleton && uiPhase !== "landing" && (
+          <div className="results-loading">
+            <SummaryCardsSkeleton />
+            <ModulesTableSkeleton />
+          </div>
+        )}
+
+        {showResults && (
+          <div className="results-panel">
             <header className="panel-header">
               <h2>{PANEL_TITLES[activePanel]}</h2>
             </header>
@@ -140,11 +164,11 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
             {activePanel === "fixes" && jobId && (
               <div className="card">
                 <div className="card-heading-row">
-                  <h2>What to fix first</h2>
-                  <SectionHint label="Fix list">
+                  <h2>Remediation plan</h2>
+                  <SectionHint label="Remediation">
                     <p>
-                      Ranked cleanup cards. Hit <strong>Copy as Jira ticket</strong> to paste into
-                      your board — titles and acceptance criteria included.
+                      Prioritized work items. Use <strong>Copy for Jira</strong> to export title and
+                      acceptance criteria to your issue tracker.
                     </p>
                   </SectionHint>
                 </div>
@@ -159,11 +183,11 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                 {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
                 <div className="card">
                   <div className="card-heading-row">
-                    <h2>Top 10 — brain-melt scores</h2>
-                    <SectionHint label="Brain melt score">
+                    <h2>Highest cyclomatic complexity</h2>
+                    <SectionHint label="Complexity">
                       <p>
-                        How branchy/twisty the logic is. High = harder to test, review, and ship
-                        without surprises.
+                        Branching complexity by file. Elevated values indicate higher testing and
+                        review effort.
                       </p>
                     </SectionHint>
                   </div>
@@ -175,15 +199,15 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
             {activePanel === "heatmap" && (
               <div className="card">
                 <div className="card-heading-row">
-                  <h2>Pain heatmap</h2>
-                  <SectionHint label="Reading the heatmap">
+                  <h2>Technical debt heatmap</h2>
+                  <SectionHint label="Heatmap">
                     <p>
-                      Each block is a file. <strong>Bigger</strong> = more lines.{" "}
-                      <strong>Color</strong> = mess score (green chill → red fix-me).
+                      Rectangle size reflects lines of code. Color reflects debt score (lower is
+                      healthier).
                     </p>
                   </SectionHint>
                 </div>
-                <p className="card-hint">Size = LOC · Color = mess score</p>
+                <p className="card-hint">Size = LOC · Color = debt score</p>
                 <DebtHeatmap modules={modules} />
               </div>
             )}
@@ -191,11 +215,11 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
             {activePanel === "files" && (
               <div className="card">
                 <div className="card-heading-row">
-                  <h2>Every file, explained</h2>
-                  <SectionHint label="This table">
+                  <h2>Module inventory</h2>
+                  <SectionHint label="Table">
                     <p>
-                      Click a row for the full story — what drives the score, git vibes, and buddy
-                      files. Hover column headers for quick defs.
+                      Select a row for drivers, git metrics, graph position, and co-change
+                      partners. Column headers include definitions.
                     </p>
                   </SectionHint>
                 </div>
@@ -205,33 +229,30 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
             {activePanel === "graph" && jobId && (
               <div className="card">
-                <h2>Dependency web map</h2>
-                <p className="card-hint">How files import each other — spot bottlenecks fast.</p>
+                <h2>Dependency graph</h2>
+                <p className="card-hint">Import relationships between modules.</p>
                 <GraphTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 
             {activePanel === "clusters" && jobId && (
               <div className="card">
-                <h2>File squads</h2>
-                <p className="card-hint">Groups of files that naturally belong together.</p>
+                <h2>Module clusters</h2>
+                <p className="card-hint">Groups of related files in the dependency structure.</p>
                 <ClustersTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 
             {activePanel === "cochange" && jobId && (
               <div className="card">
-                <h2>Buddy files</h2>
-                <p className="card-hint">Files that get edited together — change one, check the other.</p>
+                <h2>Co-change analysis</h2>
+                <p className="card-hint">Files frequently modified in the same commits.</p>
                 <CoChangeTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
-
-            <HealthReceipt modules={modules} repoUrl={activeRepoUrl} />
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 }
-

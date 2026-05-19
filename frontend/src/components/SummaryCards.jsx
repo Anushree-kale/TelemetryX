@@ -37,30 +37,30 @@ export default function SummaryCards({ modules, repoUrl, apiBase = "http://local
 
   const cards = [
     {
-      label: "Files scanned",
+      label: "Modules analyzed",
       value: String(modules.length),
-      sub: "Everything we looked at",
+      sub: "Files included in this scan",
       sparklineData: history.map((h) => ({ value: h.file_count })),
       sparklineColor: "#e07a4a",
     },
     {
-      label: "Avg mess score",
+      label: "Average debt score",
       value: avgDebt.toFixed(1),
-      sub: "0–100 · higher = scarier to change",
+      sub: "0–100 scale · higher indicates more rework risk",
       sparklineData: history.map((h) => ({ value: h.avg_debt_score })),
       sparklineColor: avgDebt >= 60 ? "#c94a4a" : avgDebt >= 35 ? "#d4920a" : "#3d8f5a",
     },
     {
-      label: "High-alarm files",
+      label: "High-risk modules",
       value: String(highRiskCount),
-      sub: highest ? `Hottest: ${highest.debt_score?.toFixed(1)}` : "All chill",
+      sub: highest ? `Peak score: ${highest.debt_score?.toFixed(1)}` : "None in this band",
       sparklineData: history.map((h) => ({ value: h.high_risk_count })),
       sparklineColor: "#d4920a",
     },
     {
-      label: "Payoff if you fix reds",
+      label: "Est. remediation (high risk)",
       value: `~${highDebtRoi.toFixed(1)} days`,
-      sub: "Rough dev-days for high-alarm files only",
+      sub: "Directional effort for high-risk modules only",
       sparklineData: history.map((h) => ({ value: h.high_risk_count })),
       sparklineColor: "#7a6b5c",
     },
@@ -69,13 +69,12 @@ export default function SummaryCards({ modules, repoUrl, apiBase = "http://local
   return (
     <section className="summary-cards-section" aria-label="Repository snapshot">
       <div className="summary-grid-heading">
-        <h2 className="summary-grid-title">The numbers</h2>
+        <h2 className="summary-grid-title">Key metrics</h2>
         <SectionHint label="Reading these cards">
           <p>
-            <strong>Mess score</strong> (0–100): how risky a file feels to change.{" "}
-            <strong>High-alarm</strong> = same thresholds as the file table.{" "}
-            <strong>Payoff days</strong> = rough estimate if you tackle red files first — not a
-            sprint commitment.
+            <strong>Debt score</strong> (0–100) reflects predicted change risk.{" "}
+            <strong>High-risk</strong> uses the same thresholds as the module table.{" "}
+            <strong>Remediation days</strong> sum ROI hints for high-risk items — directional only.
           </p>
         </SectionHint>
       </div>

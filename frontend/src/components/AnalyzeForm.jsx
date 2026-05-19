@@ -8,6 +8,8 @@ export default function AnalyzeForm({
   knownRepos = [],
   onComplete,
   onStatusChange,
+  onAnalyzeStart,
+  compact = false,
 }) {
   const [repoUrl, setRepoUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,9 +29,7 @@ export default function AnalyzeForm({
       const tick = async () => {
         try {
           const res = await fetch(`${apiBase}/jobs/${jobId}/status`);
-          if (!res.ok) {
-            throw new Error("Failed to fetch job status");
-          }
+          if (!res.ok) throw new Error("Failed to fetch job status");
           const data = await res.json();
           onStatusChange?.(data.status);
           setProgress({
@@ -40,9 +40,7 @@ export default function AnalyzeForm({
           if (data.status === "complete") {
             stopPolling();
             const resultsRes = await fetch(`${apiBase}/results/${jobId}`);
-            if (!resultsRes.ok) {
-              throw new Error("Failed to fetch job results");
-            }
+            if (!resultsRes.ok) throw new Error("Failed to fetch job results");
             resolve(await resultsRes.json());
           } else if (data.status === "failed") {
             stopPolling();
@@ -65,13 +63,14 @@ export default function AnalyzeForm({
 
     const url = repoUrl.trim();
     if (!url) {
-      setError("Enter a GitHub repository URL");
+      setError("Enter a valid GitHub repository URL.");
       return;
     }
 
     setLoading(true);
-    setProgress({ pct: 0, message: "Submitting…" });
+    setProgress({ pct: 0, message: "Submitting analysis…" });
     onStatusChange?.("pending");
+    onAnalyzeStart?.();
 
     try {
       const res = await fetch(`${apiBase}/analyze`, {
@@ -94,11 +93,9 @@ export default function AnalyzeForm({
 
       if (status === "complete") {
         const resultsRes = await fetch(`${apiBase}/results/${jobId}`);
-        const data = await resultsRes.json();
-        onComplete?.(data);
+        onComplete?.(await resultsRes.json());
       } else {
-        const data = await pollJobStatus(jobId);
-        onComplete?.(data);
+        onComplete?.(await pollJobStatus(jobId));
       }
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -108,15 +105,20 @@ export default function AnalyzeForm({
     }
   };
 
-  const recentRepos = Array.isArray(knownRepos) ? knownRepos.slice(0, 12) : [];
+  const recentRepos = Array.isArray(knownRepos) ? knownRepos.slice(0, 8) : [];
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2 className="analyze-form-title">Paste your GitHub repo</h2>
-      <p className="card-hint analyze-form-intro">
-        Drop a link below — we&apos;ll scan it for mess, bugs, churn, and what to fix first.
-      </p>
-      <div className="analyze-row">
+    <form onSubmit={handleSubmit} className={compact ? "analyze-form analyze-form--compact" : "analyze-form"}>
+      {!compact && (
+        <>
+          <h1 className="scan-hero-title">Analyse your repository</h1>
+          <p className="scan-hero-subtitle">
+            Paste a GitHub URL to inspect technical debt, churn, complexity, and priority fixes.
+          </p>
+        </>
+      )}
+
+      <div className="scan-input-row">
         <input
           type="url"
           name="repo_url"
@@ -124,7 +126,7 @@ export default function AnalyzeForm({
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           disabled={loading}
-          className="input-url"
+          className="input-url scan-input"
           list="dashboard-repo-datalist"
           autoComplete="off"
         />
@@ -133,13 +135,14 @@ export default function AnalyzeForm({
             <option key={url} value={url} />
           ))}
         </datalist>
-        <button type="submit" disabled={loading} className="btn-primary">
-          {loading ? "Scanning…" : "Scan repo"}
+        <button type="submit" disabled={loading} className="btn-primary btn-analyze">
+          {loading ? "Analysing…" : "Analyze"}
         </button>
       </div>
-      {recentRepos.length > 0 && (
-        <div className="known-repos-chips" aria-label="Previously analyzed repositories">
-          <span className="known-repos-label">Quick select</span>
+
+      {recentRepos.length > 0 && !compact && (
+        <div className="known-repos-chips">
+          <span className="known-repos-label">Recent:</span>
           <div className="known-repos-buttons">
             {recentRepos.map((url) => {
               const short = url.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
@@ -152,13 +155,14 @@ export default function AnalyzeForm({
                   title={url}
                   onClick={() => setRepoUrl(url)}
                 >
-                  {short.length > 42 ? `${short.slice(0, 40)}…` : short}
+                  {short.length > 36 ? `${short.slice(0, 34)}…` : short}
                 </button>
               );
             })}
           </div>
         </div>
       )}
+
       {loading && (
         <div className="analyze-progress-block">
           <ProgressBar pct={progress.pct} message={progress.message} />

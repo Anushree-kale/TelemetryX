@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import SectionHint from "./SectionHint";
-import { SHAP_PLAIN } from "../friendlyLabels";
+import { SHAP_PLAIN } from "../labels";
 
 const FEATURE_PLAIN = SHAP_PLAIN;
 

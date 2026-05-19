@@ -106,7 +106,7 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
       <div className="roadmap-actions">
         <span className="roadmap-fix-hours">{item.fix_hours?.toFixed(0)}h est.</span>
         <button type="button" className="btn-jira" onClick={copyJira}>
-          Copy for Jira 🎫
+          Copy for Jira
         </button>
       </div>
     </div>
