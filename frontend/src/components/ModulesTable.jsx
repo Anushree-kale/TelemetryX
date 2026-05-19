@@ -1,52 +1,20 @@
 import { useMemo, useState, useEffect } from "react";
 import ModuleDetailDrawer from "./ModuleDetailDrawer";
+import { COLUMN_LABELS, GLOSSARY, RISK_LABELS } from "../friendlyLabels";
 
-const GLOSSARY = {
-  file_path: "Repository path to the source file.",
-  debt_score:
-    "0–100 technical debt estimate from the model: higher means more rework risk and harder changes.",
-  risk_level: "High / medium / low band from debt score thresholds.",
-  priority_score: "Blended score used for fix ordering (impact vs. effort).",
-  unique_author_count: "How many different people touched this file recently.",
-  top_author_pct: "Share of commits from the most active author (bus factor signal).",
-  bug_fix_ratio: "Portion of commits that look like bug fixes vs. features.",
-  days_since_last_commit: "Days since the last commit touching this file (staleness).",
-  downstream_count: "Rough count of other files that depend on this one (blast radius).",
-  out_degree: "How many other files this file imports (local dependency fan-out).",
-  betweenness:
-    "How often this file lies on shortest paths in the dependency graph (bottleneck / bridge).",
-  churn_90d: "Number of edits in the last 90 days (change rate, not quality).",
-  lines_of_code: "Non-blank lines counted in this module.",
-  roi_days: "Estimated engineering days saved if debt is reduced (model hint, not a promise).",
-  cyclomatic_complexity: "Branching complexity—more paths usually mean harder tests and reviews.",
-  test_coverage_ratio:
-    "Test file lines ÷ source lines for this path (a ratio heuristic, not instrumented coverage).",
-};
-
-const COLUMNS = [
-  { key: "file_path", label: "File & narrative", align: "left", sortable: false },
-  { key: "debt_score", label: "Debt score", align: "right", sortable: true },
-  { key: "risk_level", label: "Risk band", align: "center", sortable: true },
-  { key: "priority_score", label: "Priority", align: "right", sortable: true },
-  { key: "unique_author_count", label: "Authors", align: "right", sortable: true },
-  { key: "top_author_pct", label: "Top author %", align: "right", sortable: true },
-  { key: "bug_fix_ratio", label: "Bug-fix rate", align: "right", sortable: true },
-  { key: "days_since_last_commit", label: "Stale days", align: "right", sortable: true },
-  { key: "downstream_count", label: "Blast radius", align: "right", sortable: true },
-  { key: "out_degree", label: "Dependencies", align: "right", sortable: true },
-  { key: "betweenness", label: "Centrality", align: "right", sortable: true },
-  { key: "churn_90d", label: "Change rate (90d)", align: "right", sortable: true },
-  { key: "lines_of_code", label: "LOC", align: "right", sortable: true },
-  { key: "test_coverage_ratio", label: "Test file ratio", align: "right", sortable: true },
-  { key: "roi_days", label: "ROI (days)", align: "right", sortable: true },
-  { key: "cyclomatic_complexity", label: "Complexity", align: "right", sortable: true },
-];
+const COLUMNS = Object.keys(COLUMN_LABELS).map((key) => ({
+  key,
+  label: COLUMN_LABELS[key],
+  align:
+    key === "file_path" ? "left" : key === "risk_level" ? "center" : "right",
+  sortable: key !== "file_path",
+}));
 
 const RISK_FILTERS = [
-  { id: "all", label: "All" },
-  { id: "high", label: "High risk" },
-  { id: "medium", label: "Medium" },
-  { id: "low", label: "Low" },
+  { id: "all", label: "All vibes" },
+  { id: "high", label: "Needs love" },
+  { id: "medium", label: "Keep watch" },
+  { id: "low", label: "Chill" },
 ];
 
 const RISK_COLORS = {
@@ -72,7 +40,7 @@ function formatCell(key, row) {
     case "debt_score":
       return v != null ? Number(v).toFixed(1) : "—";
     case "risk_level":
-      return row.risk_level || "—";
+      return RISK_LABELS[row.risk_level] || row.risk_level || "—";
     case "priority_score":
       return v != null ? Number(v).toFixed(1) : "—";
     case "unique_author_count":
@@ -176,7 +144,7 @@ export default function ModulesTable({ modules }) {
       </details>
 
       <div className="table-toolbar">
-        <span className="toolbar-label">Risk filter</span>
+        <span className="toolbar-label">Vibe filter</span>
         {RISK_FILTERS.map((f) => (
           <button
             key={f.id}

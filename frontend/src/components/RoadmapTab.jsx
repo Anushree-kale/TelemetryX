@@ -76,10 +76,10 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
         <span className="roadmap-confidence">± {item.confidence_margin?.toFixed(1)}</span>
       </div>
       <div className="roadmap-mini-bars">
-        <MiniBar label="Debt" value={debt} color="#ef4444" />
-        <MiniBar label="Impact" value={impact} color="#3b82f6" />
-        <MiniBar label="Effort" value={effortInv} color="#10b981" />
-        <MiniBar label="Stability" value={stability} color="#f59e0b" />
+        <MiniBar label="Mess" value={debt} color="#c94a4a" />
+        <MiniBar label="Ripple" value={impact} color="#e07a4a" />
+        <MiniBar label="Effort" value={effortInv} color="#3d8f5a" />
+        <MiniBar label="Stability" value={stability} color="#d4920a" />
       </div>
       <p className="roadmap-cascade">
         Unblocks {item.cascade_benefit?.toFixed(0)} debt points across{" "}
@@ -106,7 +106,7 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
       <div className="roadmap-actions">
         <span className="roadmap-fix-hours">{item.fix_hours?.toFixed(0)}h est.</span>
         <button type="button" className="btn-jira" onClick={copyJira}>
-          Copy as Jira ticket
+          Copy for Jira 🎫
         </button>
       </div>
     </div>

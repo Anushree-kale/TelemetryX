@@ -1,11 +1,11 @@
 import SectionHint from "./SectionHint";
+import { RISK_LABELS } from "../friendlyLabels";
 
 function topHotspots(modules, n = 3) {
   const scored = modules.filter((m) => m.debt_score != null);
   return [...scored].sort((a, b) => (b.debt_score ?? 0) - (a.debt_score ?? 0)).slice(0, n);
 }
 
-/** Plain-language headline for executives (derived from current module list). */
 export default function ResultsOverviewBanner({ modules, repoUrl }) {
   if (!modules?.length) return null;
 
@@ -16,34 +16,34 @@ export default function ResultsOverviewBanner({ modules, repoUrl }) {
 
   const lead =
     highRisk.length > 0
-      ? `This scan flagged ${highRisk.length} file${highRisk.length === 1 ? "" : "s"} as high risk.`
-      : "No files are in the highest risk band in this scan.";
+      ? `${highRisk.length} file${highRisk.length === 1 ? "" : "s"} are giving main-character energy (high alarm).`
+      : "No files are screaming for help in this scan — nice.";
 
   const focus = topFile
-    ? ` The single hottest file is ${topFile.file_path} (debt score ${Number(topFile.debt_score).toFixed(0)}).`
+    ? ` The spiciest one: ${topFile.file_path} (mess score ${Number(topFile.debt_score).toFixed(0)}/100).`
     : "";
 
   const effort =
     daysSaved > 0
-      ? ` If you cleared the high-risk backlog first, the model estimates on the order of ${daysSaved.toFixed(0)} engineering days of payoff across those files (rough order-of-magnitude, not a guarantee).`
+      ? ` Knock out the red files first and you're looking at ~${daysSaved.toFixed(0)} dev-days of payoff (ballpark, not a contract).`
       : "";
+
+  const vibe = topFile?.risk_level ? RISK_LABELS[topFile.risk_level] : null;
 
   return (
     <div className="plain-english-banner card">
       <div className="plain-english-banner-head">
-        <h2 className="plain-english-title">At a glance</h2>
-        <SectionHint label="How we derive this banner">
+        <h2 className="plain-english-title">The tea ☕</h2>
+        <SectionHint label="How we get this">
           <p>
-            We rank files by machine-learned <strong>debt score</strong> (0–100: higher means more
-            structural risk and rework pressure). High risk uses the same model thresholds as the
-            table. Estimated days sum the per-file ROI hints for high-risk items only—they are
-            directional, not project plans.
+            We rank files by <strong>mess score</strong> (0–100). High-alarm uses the same rules as
+            the table. Day estimates are hints only.
           </p>
         </SectionHint>
       </div>
       {repoUrl && (
         <p className="plain-english-repo">
-          <strong>Repository:</strong> {repoUrl}
+          <strong>Repo:</strong> {repoUrl}
         </p>
       )}
       <p className="plain-english-lead">
@@ -51,10 +51,15 @@ export default function ResultsOverviewBanner({ modules, repoUrl }) {
         {focus}
         {effort}
       </p>
+      {vibe && topFile && (
+        <p className="plain-english-sub">
+          <strong>Top file vibe:</strong> {vibe}
+        </p>
+      )}
       {hotspots.length > 0 && (
         <p className="plain-english-sub">
-          <strong>Top {hotspots.length} costliest files to review first:</strong>{" "}
-          {hotspots.map((m) => m.file_path).join(" · ")}
+          <strong>Peek these first:</strong>{" "}
+          {hotspots.map((m) => m.file_path.split("/").pop()).join(" · ")}
         </p>
       )}
     </div>

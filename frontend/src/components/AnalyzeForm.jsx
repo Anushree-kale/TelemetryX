@@ -112,9 +112,9 @@ export default function AnalyzeForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2 className="analyze-form-title">Analyze repository</h2>
+      <h2 className="analyze-form-title">Paste your GitHub repo</h2>
       <p className="card-hint analyze-form-intro">
-        Paste any GitHub URL, or pick a repo you have already scanned on this TelemetryX instance.
+        Drop a link below — we&apos;ll scan it for mess, bugs, churn, and what to fix first.
       </p>
       <div className="analyze-row">
         <input
@@ -134,7 +134,7 @@ export default function AnalyzeForm({
           ))}
         </datalist>
         <button type="submit" disabled={loading} className="btn-primary">
-          {loading ? "Analyzing…" : "Analyze"}
+          {loading ? "Scanning…" : "Scan repo"}
         </button>
       </div>
       {recentRepos.length > 0 && (

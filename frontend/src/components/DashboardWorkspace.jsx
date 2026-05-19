@@ -13,17 +13,24 @@ import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
 import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import SectionHint from "./SectionHint";
+import SideNav from "./SideNav";
+import HomeHero from "./HomeHero";
+import HealthReceipt from "./HealthReceipt";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
-const INTEL_TABS = [
-  { id: "roadmap", short: "Roadmap", label: "Fix roadmap (what to do first)" },
-  { id: "graph", short: "Graph", label: "Dependency map (how files connect)" },
-  { id: "clusters", short: "Clusters", label: "Module groups (files that belong together)" },
-  { id: "cochange", short: "Co-change", label: "Change coupling (files that break together)" },
-];
+const PANEL_TITLES = {
+  overview: "Home — quick snapshot",
+  fixes: "Fix list — Jira-ready tickets",
+  charts: "Charts — trends & brain-melt scores",
+  heatmap: "Heatmap — where the pain lives",
+  files: "All files — full breakdown",
+  graph: "Web map — how files connect",
+  clusters: "Squads — files that hang together",
+  cochange: "Buddy files — change in sync",
+};
 
 export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }) {
-  const [intelTab, setIntelTab] = useState("roadmap");
+  const [activePanel, setActivePanel] = useState("overview");
   const [modules, setModules] = useState([]);
   const [status, setStatus] = useState(null);
   const [repoUrl, setRepoUrl] = useState(null);
@@ -54,6 +61,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     setRepoUrl(result.repo_url);
     setCurrentJobId(result.job_id ?? null);
     onReposChanged?.();
+    setActivePanel("overview");
   };
 
   const isAnalyzing = status === "pending" || status === "running";
@@ -63,132 +71,167 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const hasModules = modules.length > 0;
 
   return (
-    <>
-      <div className="card">
-        <AnalyzeForm
-          apiBase={apiBase}
-          knownRepos={repoList}
-          onComplete={handleAnalysisComplete}
-          onStatusChange={setStatus}
-        />
-        {status && status !== "running" && (
-          <p className={`status ${status}`}>
-            {status === "complete" && activeRepoUrl && `Analysis complete: ${activeRepoUrl}`}
-            {status === "failed" && "Analysis failed. Check the repo URL and try again."}
-            {status === "pending" && "Job queued…"}
-          </p>
-        )}
-      </div>
+    <div className="dashboard-layout">
+      <SideNav
+        activePanel={activePanel}
+        onSelect={setActivePanel}
+        hasData={hasModules}
+        disabled={!hasModules}
+      />
 
-      {showResultsSkeleton && (
-        <>
-          <SummaryCardsSkeleton />
-          <ModulesTableSkeleton />
-        </>
-      )}
-
-      {!showResultsSkeleton && !hasModules && (
-        <div className="empty-state card">
-          <div className="empty-state-icon">🔍</div>
-          <h2>Analyze your first repo</h2>
-          <p>
-            Enter a GitHub repository URL above to compute technical debt scores, see complexity
-            signals, and get plain-English explanations of what is driving each file&apos;s risk.
-          </p>
-        </div>
-      )}
-
-      {!showResultsSkeleton && hasModules && (
-        <>
-          <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
-
-          <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />
-
-          <HistoryTrends repoUrl={activeRepoUrl} apiBase={apiBase} />
-          <LanguageBreakdown modules={modules} />
-
-          {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
-
-          <div className="card">
-            <div className="card-heading-row">
-              <h2>Debt heatmap</h2>
-              <SectionHint label="How to read the heatmap">
-                <p>
-                  Each rectangle is one file. <strong>Size</strong> reflects lines of code.{" "}
-                  <strong>Color</strong> reflects debt score (greener is healthier, redder needs
-                  attention sooner).
-                </p>
-              </SectionHint>
-            </div>
-            <p className="card-hint">Block size = LOC · Color = debt score (green → amber → red)</p>
-            <DebtHeatmap modules={modules} />
-          </div>
-
-          {jobId && (
-            <div className="card intelligence-panel">
-              <div className="intelligence-panel-header">
-                <span className="intelligence-panel-emoji" aria-hidden>
-                  🔍
-                </span>
-                <div>
-                  <h2 className="intelligence-panel-title">Deep analysis</h2>
-                  <p className="intelligence-panel-sub">
-                    Explore priorities, structure, ownership clusters, and files that change in
-                    lockstep.
-                  </p>
-                </div>
-              </div>
-              <div className="intel-tabs" role="tablist" aria-label="Deep analysis views">
-                {INTEL_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={intelTab === t.id}
-                    className={`intel-tab ${intelTab === t.id ? "active" : ""}`}
-                    title={t.label}
-                    onClick={() => setIntelTab(t.id)}
-                  >
-                    <span className="intel-tab-short">{t.short}</span>
-                    <span className="intel-tab-long">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-              {intelTab === "roadmap" && <RoadmapTab jobId={jobId} apiBase={apiBase} />}
-              {intelTab === "graph" && <GraphTab jobId={jobId} apiBase={apiBase} />}
-              {intelTab === "clusters" && <ClustersTab jobId={jobId} apiBase={apiBase} />}
-              {intelTab === "cochange" && <CoChangeTab jobId={jobId} apiBase={apiBase} />}
-            </div>
+      <div className="dashboard-main">
+        <section className="card home-scan-card">
+          <AnalyzeForm
+            apiBase={apiBase}
+            knownRepos={repoList}
+            onComplete={handleAnalysisComplete}
+            onStatusChange={setStatus}
+          />
+          {status && status !== "running" && (
+            <p className={`status ${status}`}>
+              {status === "complete" && activeRepoUrl && `Done — ${activeRepoUrl}`}
+              {status === "failed" && "Scan failed. Double-check the GitHub link and try again."}
+              {status === "pending" && "Queued… hang tight"}
+            </p>
           )}
 
-          <div className="card">
-            <div className="card-heading-row">
-              <h2>Top 10 — cyclomatic complexity</h2>
-              <SectionHint label="Cyclomatic complexity">
-                <p>
-                  A count of independent paths through the code—roughly, how hard a function is to
-                  test and reason about. Higher numbers usually mean more maintenance risk.
-                </p>
-              </SectionHint>
-            </div>
-            <MetricsChart modules={modules} />
-          </div>
+          {hasModules && !showResultsSkeleton && (
+            <>
+              <HomeHero modules={modules} />
+              <p className="panel-hint">
+                <strong>Want the tea?</strong> Use the left panels for charts, Jira-style fix tickets,
+                heatmaps, and file-by-file details.
+              </p>
+            </>
+          )}
+        </section>
 
-          <div className="card">
-            <div className="card-heading-row">
-              <h2>Module metrics</h2>
-              <SectionHint label="This table">
-                <p>
-                  Click any row for a full breakdown (SHAP drivers, git history, graph metrics, and
-                  co-change partners). Use the glossary below the headers if a column name is
-                  unfamiliar.
-                </p>
-              </SectionHint>
-            </div>
-            <ModulesTable modules={modules} />
+        {showResultsSkeleton && (
+          <>
+            <SummaryCardsSkeleton />
+            <ModulesTableSkeleton />
+          </>
+        )}
+
+        {!showResultsSkeleton && !hasModules && (
+          <div className="empty-state card">
+            <div className="empty-state-icon">🔗</div>
+            <h2>Drop a GitHub link to start</h2>
+            <p>
+              We&apos;ll scan your repo for messy files, bug-fix energy, edit spam (churn), and
+              what to fix first — no PhD required.
+            </p>
           </div>
-        </>
-      )}
-    </>
+        )}
+
+        {!showResultsSkeleton && hasModules && (
+          <>
+            <header className="panel-header">
+              <h2>{PANEL_TITLES[activePanel]}</h2>
+            </header>
+
+            {activePanel === "overview" && (
+              <>
+                <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
+                <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />
+              </>
+            )}
+
+            {activePanel === "fixes" && jobId && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>What to fix first</h2>
+                  <SectionHint label="Fix list">
+                    <p>
+                      Ranked cleanup cards. Hit <strong>Copy as Jira ticket</strong> to paste into
+                      your board — titles and acceptance criteria included.
+                    </p>
+                  </SectionHint>
+                </div>
+                <RoadmapTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            {activePanel === "charts" && (
+              <>
+                <HistoryTrends repoUrl={activeRepoUrl} apiBase={apiBase} />
+                <LanguageBreakdown modules={modules} />
+                {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
+                <div className="card">
+                  <div className="card-heading-row">
+                    <h2>Top 10 — brain-melt scores</h2>
+                    <SectionHint label="Brain melt score">
+                      <p>
+                        How branchy/twisty the logic is. High = harder to test, review, and ship
+                        without surprises.
+                      </p>
+                    </SectionHint>
+                  </div>
+                  <MetricsChart modules={modules} />
+                </div>
+              </>
+            )}
+
+            {activePanel === "heatmap" && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>Pain heatmap</h2>
+                  <SectionHint label="Reading the heatmap">
+                    <p>
+                      Each block is a file. <strong>Bigger</strong> = more lines.{" "}
+                      <strong>Color</strong> = mess score (green chill → red fix-me).
+                    </p>
+                  </SectionHint>
+                </div>
+                <p className="card-hint">Size = LOC · Color = mess score</p>
+                <DebtHeatmap modules={modules} />
+              </div>
+            )}
+
+            {activePanel === "files" && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>Every file, explained</h2>
+                  <SectionHint label="This table">
+                    <p>
+                      Click a row for the full story — what drives the score, git vibes, and buddy
+                      files. Hover column headers for quick defs.
+                    </p>
+                  </SectionHint>
+                </div>
+                <ModulesTable modules={modules} />
+              </div>
+            )}
+
+            {activePanel === "graph" && jobId && (
+              <div className="card">
+                <h2>Dependency web map</h2>
+                <p className="card-hint">How files import each other — spot bottlenecks fast.</p>
+                <GraphTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            {activePanel === "clusters" && jobId && (
+              <div className="card">
+                <h2>File squads</h2>
+                <p className="card-hint">Groups of files that naturally belong together.</p>
+                <ClustersTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            {activePanel === "cochange" && jobId && (
+              <div className="card">
+                <h2>Buddy files</h2>
+                <p className="card-hint">Files that get edited together — change one, check the other.</p>
+                <CoChangeTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            <HealthReceipt modules={modules} repoUrl={activeRepoUrl} />
+          </>
+        )}
+      </div>
+    </div>
   );
 }
+

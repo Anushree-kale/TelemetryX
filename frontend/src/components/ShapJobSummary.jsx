@@ -9,19 +9,9 @@ import {
   YAxis,
 } from "recharts";
 import SectionHint from "./SectionHint";
+import { SHAP_PLAIN } from "../friendlyLabels";
 
-/** Map stored feature labels (new or legacy) to short plain-English blurbs. */
-const FEATURE_PLAIN = {
-  "Test file ratio": "share of lines in test files vs. source files (not instrumented coverage)",
-  "Test coverage ratio": "share of lines in test files vs. source files (not instrumented coverage)",
-  "Cyclomatic complexity": "branching / decision complexity in the code",
-  "Cognitive complexity": "how hard the code is for humans to follow",
-  "Churn rate (90d)": "how often this file changed in the last 90 days",
-  "Lines of code": "size of the module",
-  "Function count": "how many functions the module contains",
-  "Max function complexity": "the hardest single function in the file",
-  "Dependency fan-out": "how many other files this one pulls in",
-};
+const FEATURE_PLAIN = SHAP_PLAIN;
 
 function formatShapTooltip(payload) {
   const p = payload;
@@ -70,7 +60,7 @@ export default function ShapJobSummary({ jobId, apiBase }) {
   if (loading) {
     return (
       <div className="card">
-        <h2>What drives debt scores in this repo?</h2>
+        <h2>What makes files messy here?</h2>
         <p className="card-hint">Loading aggregated explanations…</p>
       </div>
     );
@@ -79,7 +69,7 @@ export default function ShapJobSummary({ jobId, apiBase }) {
   if (error) {
     return (
       <div className="card">
-        <h2>What drives debt scores in this repo?</h2>
+        <h2>What makes files messy here?</h2>
         <p className="status error">⚠️ {error}</p>
       </div>
     );
@@ -88,7 +78,7 @@ export default function ShapJobSummary({ jobId, apiBase }) {
   if (features.length === 0) {
     return (
       <div className="card">
-        <h2>What drives debt scores in this repo?</h2>
+        <h2>What makes files messy here?</h2>
         <p className="card-hint">
           No explanation rows stored for this job yet. Re-run analysis after the debt model has
           trained successfully.
@@ -106,7 +96,7 @@ export default function ShapJobSummary({ jobId, apiBase }) {
   return (
     <div className="card shap-job-card">
       <div className="card-heading-row">
-        <h2>What drives debt scores in this repo?</h2>
+        <h2>What makes files messy here?</h2>
         <SectionHint label="How to read this chart">
           <p>
             The model estimates each file&apos;s debt from measurable signals (complexity, size,

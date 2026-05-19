@@ -37,46 +37,45 @@ export default function SummaryCards({ modules, repoUrl, apiBase = "http://local
 
   const cards = [
     {
-      label: "Modules analyzed",
+      label: "Files scanned",
       value: String(modules.length),
-      sub: "Total files parsed",
+      sub: "Everything we looked at",
       sparklineData: history.map((h) => ({ value: h.file_count })),
-      sparklineColor: "#3b82f6",
+      sparklineColor: "#e07a4a",
     },
     {
-      label: "Avg debt score",
+      label: "Avg mess score",
       value: avgDebt.toFixed(1),
-      sub: "0–100 · higher = more rework pressure",
+      sub: "0–100 · higher = scarier to change",
       sparklineData: history.map((h) => ({ value: h.avg_debt_score })),
-      sparklineColor: avgDebt >= 60 ? "#ef4444" : avgDebt >= 35 ? "#f59e0b" : "#10b981",
+      sparklineColor: avgDebt >= 60 ? "#c94a4a" : avgDebt >= 35 ? "#d4920a" : "#3d8f5a",
     },
     {
-      label: "High-risk modules",
+      label: "High-alarm files",
       value: String(highRiskCount),
-      sub: highest ? `Max score: ${highest.debt_score?.toFixed(1)}` : "None",
+      sub: highest ? `Hottest: ${highest.debt_score?.toFixed(1)}` : "All chill",
       sparklineData: history.map((h) => ({ value: h.high_risk_count })),
-      sparklineColor: "#f59e0b",
+      sparklineColor: "#d4920a",
     },
     {
-      label: "Est. refactor days (high risk)",
-      value: `~${highDebtRoi.toFixed(1)}`,
-      sub: "Cumulative ROI hint for high-risk files only",
+      label: "Payoff if you fix reds",
+      value: `~${highDebtRoi.toFixed(1)} days`,
+      sub: "Rough dev-days for high-alarm files only",
       sparklineData: history.map((h) => ({ value: h.high_risk_count })),
-      sparklineColor: "#94a3b8",
+      sparklineColor: "#7a6b5c",
     },
   ];
 
   return (
     <section className="summary-cards-section" aria-label="Repository snapshot">
       <div className="summary-grid-heading">
-        <h2 className="summary-grid-title">Snapshot metrics</h2>
+        <h2 className="summary-grid-title">The numbers</h2>
         <SectionHint label="Reading these cards">
           <p>
-            <strong>Debt score</strong> is a 0–100 model output: higher means the file looks harder
-            to change safely (complexity, churn, thin tests-on-disk, etc.).{" "}
-            <strong>High risk</strong> uses the same model thresholds as the table.{" "}
-            <strong>Refactor days</strong> sums per-file ROI hints for high-risk items—treat it as
-            directional, not a project plan.
+            <strong>Mess score</strong> (0–100): how risky a file feels to change.{" "}
+            <strong>High-alarm</strong> = same thresholds as the file table.{" "}
+            <strong>Payoff days</strong> = rough estimate if you tackle red files first — not a
+            sprint commitment.
           </p>
         </SectionHint>
       </div>

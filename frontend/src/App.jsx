@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import CompareWorkspace from "./components/CompareWorkspace";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
+import { APP_TAGLINE } from "./friendlyLabels";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -23,13 +24,11 @@ export default function App() {
   }, [refreshRepoList]);
 
   return (
-    <div>
-      <div className="app-header-container">
-        <div>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-brand">
           <h1>TelemetryX</h1>
-          <p className="subtitle">
-            Enterprise engineering intelligence — debt scoring with plain-English explanations
-          </p>
+          <p className="subtitle">{APP_TAGLINE}</p>
         </div>
         <div className="workspace-tabs">
           <button
@@ -37,36 +36,38 @@ export default function App() {
             className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
             onClick={() => setActiveTab("dashboard")}
           >
-            Single repo dashboard
+            Scan repo
           </button>
           <button
             type="button"
             className={`tab-btn ${activeTab === "compare" ? "active" : ""}`}
             onClick={() => setActiveTab("compare")}
           >
-            Compare repositories
+            Compare two
           </button>
           <button
             type="button"
             className={`tab-btn ${activeTab === "tools" ? "active" : ""}`}
             onClick={() => setActiveTab("tools")}
           >
-            Integrations &amp; model
+            Hooks &amp; model
           </button>
         </div>
-      </div>
+      </header>
 
-      {activeTab === "dashboard" && (
-        <DashboardWorkspace
-          apiBase={API_BASE}
-          repoList={repoList}
-          onReposChanged={refreshRepoList}
-        />
-      )}
+      <main className="app-main">
+        {activeTab === "dashboard" && (
+          <DashboardWorkspace
+            apiBase={API_BASE}
+            repoList={repoList}
+            onReposChanged={refreshRepoList}
+          />
+        )}
 
-      {activeTab === "compare" && <CompareWorkspace repoList={repoList} />}
+        {activeTab === "compare" && <CompareWorkspace repoList={repoList} />}
 
-      {activeTab === "tools" && <DeveloperTools apiBase={API_BASE} />}
+        {activeTab === "tools" && <DeveloperTools apiBase={API_BASE} />}
+      </main>
     </div>
   );
 }
