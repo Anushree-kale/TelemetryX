@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { ResponsiveContainer, LineChart, Line } from "recharts";
 
-export default function SummaryCards({ modules, repoUrl }) {
+export default function SummaryCards({ modules, repoUrl, apiBase = "http://localhost:8000" }) {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
     if (!repoUrl) return;
-    fetch(`http://localhost:8000/jobs/history?repo_url=${encodeURIComponent(repoUrl)}`)
+    fetch(`${apiBase}/jobs/history?repo_url=${encodeURIComponent(repoUrl)}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -14,7 +14,7 @@ export default function SummaryCards({ modules, repoUrl }) {
         }
       })
       .catch((err) => console.error("Error loading historical jobs:", err));
-  }, [repoUrl]);
+  }, [repoUrl, apiBase]);
 
   if (!modules.length) return null;
 

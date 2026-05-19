@@ -9,7 +9,7 @@ from pydantic import BaseModel, HttpUrl
 
 import database
 import post_analysis
-from debt_model import get_scorer
+from debt_model import MODEL_PATH, get_scorer
 from graph_builder import graph_from_stored_json
 from tasks import analyze_repo_task
 
@@ -24,9 +24,17 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="TelemetryX", version="0.2.0", lifespan=lifespan)
 
+_default_cors = ["http://localhost:3000", "http://localhost:5173"]
+_extra_origins = [
+    o.strip()
+    for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+    if o.strip()
+]
+_cors_allow = list(dict.fromkeys(_default_cors + _extra_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=_cors_allow,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,6 +131,35 @@ def retrain_model(admin_key: str = Depends(get_admin_key)):
 @app.get("/jobs/history")
 def get_jobs_history(repo_url: str):
     return database.get_repo_jobs_history(repo_url)
+
+
+@app.get("/jobs/{job_id}/co-changes")
+def get_job_co_changes(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    pairs = database.get_co_change_pairs(job_id)
+    return {"job_id": job_id, "pairs": pairs, "pair_count": len(pairs)}
+
+
+@app.get("/jobs/{job_id}/shap-summary")
+def get_job_shap_summary(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    rows = database.get_job_shap_aggregate(job_id)
+    return {"job_id": job_id, "features": rows}
+
+
+@app.get("/model/status")
+def get_model_status():
+    scorer = get_scorer()
+    training_rows = database.get_all_metrics_for_training()
+    return {
+        "model_loaded": scorer.model is not None,
+        "model_file_exists": MODEL_PATH.exists(),
+        "training_sample_count": len(training_rows),
+    }
 
 
 @app.get("/roadmap/{job_id}")

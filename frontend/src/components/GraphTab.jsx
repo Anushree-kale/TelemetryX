@@ -9,6 +9,12 @@ const CLUSTER_PALETTE = [
   "#ec4899",
 ];
 
+const RISK_NODE_COLORS = {
+  high: "#ef4444",
+  medium: "#f59e0b",
+  low: "#22c55e",
+};
+
 function nodeSize(priority) {
   const p = priority || 0;
   return 20 + (p / 100) * 40;
@@ -17,10 +23,12 @@ function nodeSize(priority) {
 export default function GraphTab({ jobId, apiBase }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
+  const nodeMetaRef = useRef(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [nodeDetail, setNodeDetail] = useState(null);
+  const [colorBy, setColorBy] = useState("cluster");
 
   const fetchNodeDetail = useCallback(
     async (filePath) => {
@@ -29,7 +37,7 @@ export default function GraphTab({ jobId, apiBase }) {
       if (!res.ok) return;
       setNodeDetail(await res.json());
     },
-    [apiBase, jobId]
+    [apiBase, jobId],
   );
 
   useEffect(() => {
@@ -51,12 +59,18 @@ export default function GraphTab({ jobId, apiBase }) {
 
         const graph = data.graph_json;
         const elements = [];
+        const meta = new Map();
 
         for (const node of graph.nodes || []) {
           const id = node.id;
           const priority = node.priority_score || node.debt_score || 0;
           const clusterId = node.cluster_id ?? 0;
           const size = nodeSize(priority);
+          const riskLevel = node.risk_level || "low";
+          const clusterColor = CLUSTER_PALETTE[clusterId % CLUSTER_PALETTE.length];
+          const riskColor = RISK_NODE_COLORS[riskLevel] || RISK_NODE_COLORS.low;
+          meta.set(id, { risk_level: riskLevel, cluster_id: clusterId });
+          const fillColor = colorBy === "risk" ? riskColor : clusterColor;
           elements.push({
             data: {
               id,
@@ -65,12 +79,15 @@ export default function GraphTab({ jobId, apiBase }) {
               debt_score: node.debt_score,
               cluster_id: clusterId,
               in_degree: node.in_degree,
+              risk_level: riskLevel,
               size,
-              color: CLUSTER_PALETTE[clusterId % CLUSTER_PALETTE.length],
+              color: fillColor,
             },
             classes: node.is_critical ? "critical" : "",
           });
         }
+
+        nodeMetaRef.current = meta;
 
         for (const edge of graph.links || []) {
           const src = typeof edge.source === "object" ? edge.source.id : edge.source;
@@ -168,19 +185,45 @@ export default function GraphTab({ jobId, apiBase }) {
         cyRef.current = null;
       }
     };
-  }, [jobId, apiBase, fetchNodeDetail]);
+  }, [jobId, apiBase, fetchNodeDetail, colorBy]);
+
+  const selectedRisk = selected ? nodeMetaRef.current.get(selected)?.risk_level : null;
 
   return (
     <div className="graph-tab card">
       <div className="graph-tab-header">
         <h2>Dependency Graph</h2>
-        <div className="graph-legend-group">
-          <span className="graph-legend-item">
-            <span className="legend-line import-solid" /> Import
-          </span>
-          <span className="graph-legend-item">
-            <span className="legend-line coupling-dashed" /> Co-Change
-          </span>
+        <div className="graph-header-controls">
+          <div className="graph-color-toggle" role="group" aria-label="Node coloring">
+            <span className="graph-toggle-label">Color by</span>
+            <button
+              type="button"
+              className={`filter-btn ${colorBy === "cluster" ? "active" : ""}`}
+              onClick={() => setColorBy("cluster")}
+            >
+              Cluster
+            </button>
+            <button
+              type="button"
+              className={`filter-btn ${colorBy === "risk" ? "active" : ""}`}
+              onClick={() => setColorBy("risk")}
+            >
+              Risk
+            </button>
+          </div>
+          <div className="graph-legend-group">
+            <span className="graph-legend-item">
+              <span className="legend-line import-solid" /> Import
+            </span>
+            <span className="graph-legend-item">
+              <span className="legend-line coupling-dashed" /> Co-Change
+            </span>
+            {colorBy === "risk" && (
+              <span className="graph-legend-item muted small">
+                Risk: low / medium / high
+              </span>
+            )}
+          </div>
         </div>
       </div>
       {loading && <p className="graph-tab-status">Loading graph…</p>}
@@ -191,6 +234,11 @@ export default function GraphTab({ jobId, apiBase }) {
           <aside className="graph-side-panel">
             <h3>{selected.split("/").pop()}</h3>
             <code className="graph-panel-path">{selected}</code>
+            {selectedRisk && (
+              <p className="graph-panel-risk">
+                Risk level: <strong>{selectedRisk}</strong>
+              </p>
+            )}
             <div className="graph-panel-stats">
               <div>
                 <span className="stat-num">{nodeDetail.debt_score?.toFixed(1)}</span>
@@ -205,8 +253,20 @@ export default function GraphTab({ jobId, apiBase }) {
                 <span className="stat-lbl">In-degree</span>
               </div>
               <div>
+                <span className="stat-num">{nodeDetail.out_degree ?? 0}</span>
+                <span className="stat-lbl">Out-degree</span>
+              </div>
+              <div>
                 <span className="stat-num">{nodeDetail.downstream_count}</span>
                 <span className="stat-lbl">Downstream</span>
+              </div>
+              <div>
+                <span className="stat-num">
+                  {nodeDetail.betweenness != null
+                    ? Number(nodeDetail.betweenness).toFixed(3)
+                    : "—"}
+                </span>
+                <span className="stat-lbl">Betweenness</span>
               </div>
             </div>
             <div className="graph-panel-lists">

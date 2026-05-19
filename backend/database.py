@@ -335,6 +335,42 @@ def _attach_reasons(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return modules
 
 
+def _module_shap_summaries(module_ids: list[int]) -> dict[int, str]:
+    """Plain-language SHAP narrative per module (top 3 contributors)."""
+    if not module_ids:
+        return {}
+    from explain import reasons_to_text
+
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT module_id, feature, shap_value, contribution_pct, display_value
+            FROM shap_explanations
+            WHERE module_id = ANY(%s)
+            ORDER BY module_id, contribution_pct DESC
+            """,
+            (module_ids,),
+        )
+        rows = cur.fetchall()
+
+    by_module: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        mid = row["module_id"]
+        lst = by_module.setdefault(mid, [])
+        if len(lst) >= 3:
+            continue
+        lst.append(
+            {
+                "feature": row["feature"],
+                "shap_value": float(row["shap_value"]),
+                "contribution_pct": float(row["contribution_pct"]),
+                "display_value": row["display_value"],
+            }
+        )
+
+    return {mid: " ".join(reasons_to_text(lst)) for mid, lst in by_module.items()}
+
+
 _MODULE_COLUMNS = """
     id, job_id, file_path, cyclomatic_complexity, cognitive_complexity,
     lines_of_code, function_count, churn_90d, test_coverage_ratio,
@@ -404,10 +440,39 @@ def get_co_change_pairs(job_id: int) -> list[dict[str, Any]]:
             """
             SELECT file_a, file_b, co_change_count
             FROM co_change_pairs WHERE job_id = %s
+            ORDER BY co_change_count DESC, file_a, file_b
             """,
             (job_id,),
         )
         return [dict(row) for row in cur.fetchall()]
+
+
+def get_job_shap_aggregate(job_id: int) -> list[dict[str, Any]]:
+    """Repo-wide SHAP: which features drive debt across modules in this job."""
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT se.feature,
+                   SUM(ABS(se.shap_value)) AS total_abs_shap,
+                   AVG(se.contribution_pct) AS avg_contribution_pct,
+                   COUNT(DISTINCT se.module_id) AS module_count
+            FROM shap_explanations se
+            JOIN module_metrics m ON m.id = se.module_id
+            WHERE m.job_id = %s
+            GROUP BY se.feature
+            ORDER BY total_abs_shap DESC NULLS LAST
+            LIMIT 20
+            """,
+            (job_id,),
+        )
+        rows = []
+        for row in cur.fetchall():
+            d = dict(row)
+            d["total_abs_shap"] = float(d["total_abs_shap"] or 0)
+            d["avg_contribution_pct"] = float(d["avg_contribution_pct"] or 0)
+            d["module_count"] = int(d["module_count"] or 0)
+            rows.append(d)
+        return rows
 
 
 def update_module_graph_metrics(
@@ -530,7 +595,13 @@ def get_roadmap_items(job_id: int) -> list[dict[str, Any]]:
             """,
             (job_id,),
         )
-        return [dict(row) for row in cur.fetchall()]
+        items = [dict(row) for row in cur.fetchall()]
+    if not items:
+        return items
+    summaries = _module_shap_summaries([i["module_id"] for i in items])
+    for item in items:
+        item["summary"] = summaries.get(item["module_id"], "")
+    return items
 
 
 def set_module_critical(module_id: int, is_critical: bool) -> dict[str, Any] | None:
@@ -549,18 +620,16 @@ def set_module_critical(module_id: int, is_critical: bool) -> dict[str, Any] | N
 def get_all_modules() -> list[dict[str, Any]]:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
-            """
-            SELECT m.id, m.file_path, m.cyclomatic_complexity, m.cognitive_complexity,
-                   m.lines_of_code, m.function_count, m.churn_90d,
-                   m.test_coverage_ratio, m.max_fn_complexity, m.fan_out,
-                   m.debt_score, m.roi_days, m.risk_level,
-                   j.repo_url, j.id AS job_id
+            f"""
+            SELECT
+                {_MODULE_COLUMNS},
+                j.repo_url, j.id AS job_id
             FROM module_metrics m
             JOIN analysis_jobs j ON j.id = m.job_id
             ORDER BY m.debt_score DESC NULLS LAST
             """
         )
-        modules = [dict(row) for row in cur.fetchall()]
+        modules = [_parse_module_row(dict(row)) for row in cur.fetchall()]
     return _attach_reasons(modules)
 
 

@@ -1268,6 +1268,8 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   padding: 1rem 1.25rem 0;
 }
 
@@ -1456,5 +1458,258 @@ h1 {
   color: #94a3b8;
   max-height: 150px;
   overflow-y: auto;
+}
+
+/* --- Feature parity: trends, co-change, devtools, wide modules table --- */
+.trends-card .trends-subtitle {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 1rem 0 0.5rem;
+}
+
+.trends-chart-block:first-of-type .trends-subtitle {
+  margin-top: 0.25rem;
+}
+
+.trends-chart {
+  width: 100%;
+}
+
+.language-split {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .language-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.language-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
+.language-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.lang-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.lang-count {
+  margin-left: auto;
+  color: #c5d0e0;
+}
+
+.pie-tooltip {
+  background: #1a2332;
+  border: 1px solid #2a3548;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.co-change-intro {
+  margin-bottom: 0.75rem;
+}
+
+.co-change-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid #2a3548;
+  border-radius: 8px;
+}
+
+.co-change-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.co-change-table th,
+.co-change-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #2a3548;
+}
+
+.co-change-table th.sortable {
+  cursor: pointer;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.co-change-table th.sortable:hover {
+  color: #e7ecf3;
+}
+
+.co-change-table .right {
+  text-align: right;
+}
+
+.co-change-table td.right {
+  text-align: right;
+}
+
+.co-change-table .strong {
+  font-weight: 600;
+  color: #a855f7;
+}
+
+.devtools-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.devtools-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.devtools-url {
+  flex: 1 1 280px;
+  padding: 0.5rem 0.65rem;
+  background: #0f1419;
+  border-radius: 6px;
+  border: 1px solid #2a3548;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.model-status-list {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  color: #c5d0e0;
+  font-size: 0.9rem;
+}
+
+.retrain-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 420px;
+}
+
+.devtools-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.devtools-retrain-msg {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.graph-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.graph-color-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.graph-toggle-label {
+  font-size: 0.75rem;
+  color: #8b9cb3;
+  margin-right: 0.25rem;
+}
+
+.graph-panel-risk {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.modules-table-wide th {
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.modules-table-wide td {
+  font-size: 0.78rem;
+}
+
+tr.row-critical td:first-child {
+  box-shadow: inset 3px 0 0 #fbbf24;
+}
+
+.roadmap-downstream-details {
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.roadmap-downstream-details summary {
+  cursor: pointer;
+  color: #60a5fa;
+}
+
+.roadmap-downstream-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  max-height: 140px;
+  overflow-y: auto;
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.drawer-summary-text {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #c5d0e0;
+  margin: 0;
+}
+
+.drawer-imports-list,
+.drawer-cochanges {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.drawer-cochanges li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.drawer-cochanges .co-count {
+  color: #a855f7;
+  flex-shrink: 0;
+}
+
+.small {
+  font-size: 0.75rem;
+}
+
+.muted {
+  color: #8b9cb3;
 }
 

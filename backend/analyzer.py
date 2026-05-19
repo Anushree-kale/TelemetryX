@@ -398,6 +398,36 @@ def extract_git_signals(
     return results, co_change_pairs
 
 
+IGNORED_DIRS = {
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "myenv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    "out",
+    "target",
+    ".git",
+    ".github",
+    ".idea",
+    ".vscode",
+    ".next",
+    "site-packages",
+}
+
+
+def should_ignore_path(path: Path) -> bool:
+    """Check if the path contains any segment starting with '.' or in IGNORED_DIRS."""
+    for part in path.parts:
+        part_lower = part.lower()
+        if part.startswith(".") or part_lower in IGNORED_DIRS:
+            return True
+    return False
+
+
 def analyze_python_files(
     repo_path: str, git_repo: Repo | None = None
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -409,7 +439,7 @@ def analyze_python_files(
     source_files = [
         p
         for p in all_files
-        if not any(part.startswith(".") for part in p.parts)
+        if not should_ignore_path(p)
     ]
     git_signals: dict[str, dict[str, Any]] = {}
     co_change_pairs: list[dict[str, Any]] = []

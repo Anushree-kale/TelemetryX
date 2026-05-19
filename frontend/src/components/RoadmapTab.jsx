@@ -25,6 +25,9 @@ function MiniBar({ label, value, color }) {
 function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
   const [toggling, setToggling] = useState(false);
   const filename = item.file_path?.split("/").pop() || item.file_path;
+  const downstreamFiles = Array.isArray(item.downstream_files)
+    ? item.downstream_files
+    : [];
 
   const handleCritical = async () => {
     setToggling(true);
@@ -82,6 +85,18 @@ function RoadmapCard({ item, maxDownstream, onCriticalToggle }) {
         Unblocks {item.cascade_benefit?.toFixed(0)} debt points across{" "}
         {item.downstream_count} modules
       </p>
+      {downstreamFiles.length > 0 && (
+        <details className="roadmap-downstream-details">
+          <summary>Downstream files ({downstreamFiles.length})</summary>
+          <ul className="roadmap-downstream-list">
+            {downstreamFiles.map((path) => (
+              <li key={path}>
+                <code>{path}</code>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p className="roadmap-reason">{item.reason}</p>
       <div className="roadmap-actions">
         <span className="roadmap-fix-hours">{item.fix_hours?.toFixed(0)}h est.</span>

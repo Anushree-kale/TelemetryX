@@ -3,7 +3,12 @@ import ProgressBar from "./ProgressBar";
 
 const POLL_INTERVAL_MS = 1500;
 
-export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
+export default function AnalyzeForm({
+  apiBase,
+  knownRepos = [],
+  onComplete,
+  onStatusChange,
+}) {
   const [repoUrl, setRepoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -41,9 +46,7 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
             resolve(await resultsRes.json());
           } else if (data.status === "failed") {
             stopPolling();
-            reject(
-              new Error(data.error_detail || "Analysis job failed"),
-            );
+            reject(new Error(data.error_detail || "Analysis job failed"));
           }
         } catch (err) {
           stopPolling();
@@ -105,24 +108,59 @@ export default function AnalyzeForm({ apiBase, onComplete, onStatusChange }) {
     }
   };
 
+  const recentRepos = Array.isArray(knownRepos) ? knownRepos.slice(0, 12) : [];
+
   return (
     <form onSubmit={handleSubmit}>
-      <h2 style={{ margin: "0 0 1rem" }}>Analyze Repository</h2>
+      <h2 className="analyze-form-title">Analyze repository</h2>
+      <p className="card-hint analyze-form-intro">
+        Paste any GitHub URL, or pick a repo you have already scanned on this TelemetryX instance.
+      </p>
       <div className="analyze-row">
         <input
           type="url"
+          name="repo_url"
           placeholder="https://github.com/owner/repo"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           disabled={loading}
           className="input-url"
+          list="dashboard-repo-datalist"
+          autoComplete="off"
         />
+        <datalist id="dashboard-repo-datalist">
+          {recentRepos.map((url) => (
+            <option key={url} value={url} />
+          ))}
+        </datalist>
         <button type="submit" disabled={loading} className="btn-primary">
           {loading ? "Analyzing…" : "Analyze"}
         </button>
       </div>
+      {recentRepos.length > 0 && (
+        <div className="known-repos-chips" aria-label="Previously analyzed repositories">
+          <span className="known-repos-label">Quick select</span>
+          <div className="known-repos-buttons">
+            {recentRepos.map((url) => {
+              const short = url.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
+              return (
+                <button
+                  key={url}
+                  type="button"
+                  className="repo-chip"
+                  disabled={loading}
+                  title={url}
+                  onClick={() => setRepoUrl(url)}
+                >
+                  {short.length > 42 ? `${short.slice(0, 40)}…` : short}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {loading && (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="analyze-progress-block">
           <ProgressBar pct={progress.pct} message={progress.message} />
         </div>
       )}

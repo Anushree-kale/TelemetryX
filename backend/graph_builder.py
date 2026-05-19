@@ -12,6 +12,36 @@ import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
 
 
+IGNORED_DIRS = {
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "myenv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    "out",
+    "target",
+    ".git",
+    ".github",
+    ".idea",
+    ".vscode",
+    ".next",
+    "site-packages",
+}
+
+
+def should_ignore_path(path: Path) -> bool:
+    """Check if the path contains any segment starting with '.' or in IGNORED_DIRS."""
+    for part in path.parts:
+        part_lower = part.lower()
+        if part.startswith(".") or part_lower in IGNORED_DIRS:
+            return True
+    return False
+
+
 def _py_files_in_repo(repo_path: str) -> dict[str, str]:
     """Map repo-relative paths and module names to file paths."""
     root = Path(repo_path)
@@ -19,7 +49,7 @@ def _py_files_in_repo(repo_path: str) -> dict[str, str]:
     module_to_path: dict[str, str] = {}
 
     for py_file in root.rglob("*.py"):
-        if any(part.startswith(".") for part in py_file.parts):
+        if should_ignore_path(py_file):
             continue
         rel = str(py_file.relative_to(root)).replace("\\", "/")
         path_set.add(rel)
@@ -105,7 +135,7 @@ def collect_python_import_edges(repo_path: str) -> list[tuple[str, str, int]]:
 
     root = Path(repo_path)
     for py_file in root.rglob("*.py"):
-        if any(part.startswith(".") for part in py_file.parts):
+        if should_ignore_path(py_file):
             continue
         rel = str(py_file.relative_to(root)).replace("\\", "/")
         try:

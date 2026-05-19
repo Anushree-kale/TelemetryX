@@ -45,13 +45,29 @@ function DebtGauge({ score }) {
   );
 }
 
+function formatBugFixRatio(v) {
+  if (v == null) return "—";
+  const n = Number(v);
+  if (n <= 1 && n >= 0) return `${(n * 100).toFixed(0)}%`;
+  return `${n.toFixed(0)}%`;
+}
+
+function topCoChanges(coChanges, limit = 12) {
+  if (!coChanges || typeof coChanges !== "object") return [];
+  return Object.entries(coChanges)
+    .map(([path, count]) => ({ path, count: Number(count) || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
 export default function ModuleDetailDrawer({ module, onClose }) {
   if (!module) return null;
 
   const reasons = (module.reasons || []).map((r) => ({
     name: r.feature,
     pct: r.contribution_pct,
-    value: r.value,
+    value: r.value ?? r.display_value,
+    shap_value: r.shap_value,
   }));
 
   const metrics = [
@@ -64,6 +80,30 @@ export default function ModuleDetailDrawer({ module, onClose }) {
     ["Max fn complexity", module.max_fn_complexity],
     ["Fan-out", module.fan_out],
   ];
+
+  const gitMetrics = [
+    ["Unique authors", module.unique_author_count],
+    ["Top author share", module.top_author_pct != null ? `${Number(module.top_author_pct).toFixed(0)}%` : "—"],
+    ["Bug-fix commit ratio", formatBugFixRatio(module.bug_fix_ratio)],
+    ["Days since last commit", module.days_since_last_commit],
+  ];
+
+  const graphMetrics = [
+    ["In-degree", module.in_degree],
+    ["Out-degree", module.out_degree],
+    ["Betweenness", module.betweenness != null ? Number(module.betweenness).toFixed(4) : "—"],
+    ["Downstream reach", module.downstream_count],
+    ["Cluster", module.cluster_id],
+    ["Priority score", module.priority_score != null ? module.priority_score.toFixed(1) : "—"],
+    ["Critical (roadmap)", module.is_critical ? "Yes" : "No"],
+  ];
+
+  const importsStr = module.imports != null ? String(module.imports).trim() : "";
+  const importsPreview = importsStr
+    ? importsStr.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 25)
+    : [];
+
+  const coList = topCoChanges(module.co_changes);
 
   const risk = module.risk_level || "low";
 
@@ -98,9 +138,16 @@ export default function ModuleDetailDrawer({ module, onClose }) {
           <strong>~{module.roi_days?.toFixed(1) ?? "0"} days</strong>
         </p>
 
+        {module.summary && (
+          <section className="drawer-section">
+            <h4>SHAP narrative</h4>
+            <p className="drawer-summary-text">{module.summary}</p>
+          </section>
+        )}
+
         {reasons.length > 0 && (
           <section className="drawer-section">
-            <h4>Why this score (SHAP)</h4>
+            <h4>Top SHAP contributors</h4>
             <ResponsiveContainer width="100%" height={reasons.length * 44 + 16}>
               <BarChart
                 data={reasons}
@@ -124,7 +171,71 @@ export default function ModuleDetailDrawer({ module, onClose }) {
             <ul className="reason-list">
               {reasons.map((r) => (
                 <li key={r.name}>
-                  {r.name} ({r.value}) — {r.pct}% of score
+                  <strong>{r.name}</strong> ({r.value}) — {r.pct}% of local score
+                  {r.shap_value != null && (
+                    <span className="muted small">
+                      {" "}
+                      · raw SHAP {Number(r.shap_value) > 0 ? "+" : ""}
+                      {Number(r.shap_value).toFixed(3)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="drawer-section">
+          <h4>Git activity</h4>
+          <dl className="metrics-dl">
+            {gitMetrics.map(([label, val]) => (
+              <div key={label} className="metrics-row">
+                <dt>{label}</dt>
+                <dd>{val ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="drawer-section">
+          <h4>Graph &amp; prioritization</h4>
+          <dl className="metrics-dl">
+            {graphMetrics.map(([label, val]) => (
+              <div key={label} className="metrics-row">
+                <dt>{label}</dt>
+                <dd>{val ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {importsPreview.length > 0 && (
+          <section className="drawer-section">
+            <h4>Imports (sample)</h4>
+            <ul className="drawer-imports-list">
+              {importsPreview.map((imp) => (
+                <li key={imp}>
+                  <code>{imp}</code>
+                </li>
+              ))}
+            </ul>
+            {importsStr.split(",").length > importsPreview.length && (
+              <p className="muted small">Showing first {importsPreview.length} of many.</p>
+            )}
+          </section>
+        )}
+
+        {coList.length > 0 && (
+          <section className="drawer-section">
+            <h4>Co-change partners</h4>
+            <p className="muted small">
+              Files that often change in the same commit as this module.
+            </p>
+            <ul className="drawer-cochanges">
+              {coList.map((row) => (
+                <li key={row.path}>
+                  <code>{row.path}</code>
+                  <span className="co-count">{row.count}×</span>
                 </li>
               ))}
             </ul>

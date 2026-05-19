@@ -22,7 +22,7 @@ FEATURE_LABELS = {
     "cyclomatic_complexity": "Cyclomatic complexity",
     "cognitive_complexity": "Cognitive complexity",
     "churn_90d": "Churn rate (90d)",
-    "test_coverage_ratio": "Test coverage ratio",
+    "test_coverage_ratio": "Test file ratio",
     "lines_of_code": "Lines of code",
     "function_count": "Function count",
     "max_fn_complexity": "Max function complexity",

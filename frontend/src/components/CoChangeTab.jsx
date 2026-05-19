@@ -1,0 +1,118 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+export default function CoChangeTab({ jobId, apiBase }) {
+  const [pairs, setPairs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [sortKey, setSortKey] = useState("co_change_count");
+  const [sortDir, setSortDir] = useState("desc");
+
+  const load = useCallback(async () => {
+    if (!jobId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiBase}/jobs/${jobId}/co-changes`);
+      if (!res.ok) throw new Error("Failed to load co-change pairs");
+      const data = await res.json();
+      setPairs(data.pairs || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId, apiBase]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const sorted = useMemo(() => {
+    const copy = [...pairs];
+    copy.sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "string") {
+        const c = av.localeCompare(bv);
+        return sortDir === "asc" ? c : -c;
+      }
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+    return copy;
+  }, [pairs, sortKey, sortDir]);
+
+  const toggleSort = (key) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "co_change_count" ? "desc" : "asc");
+    }
+  };
+
+  const indicator = (key) => (key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+
+  if (loading) {
+    return (
+      <div className="tab-loading card">
+        <p>Loading co-change coupling data…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="tab-error card">
+        <p>⚠️ {error}</p>
+      </div>
+    );
+  }
+
+  if (pairs.length === 0) {
+    return (
+      <div className="empty-state card">
+        <p>
+          No co-change pairs recorded for this scan. Pairs appear when files are edited
+          together in the same commit at least three times within the analysis window.
+        </p>
+      </div>
+    );
+  }
+
+  const display = sorted.slice(0, 200);
+
+  return (
+    <div className="co-change-tab">
+      <p className="card-hint co-change-intro">
+        Files that frequently change together (strong coupling). Dashed purple edges in the
+        graph use the same data. Showing {display.length} of {pairs.length} pairs.
+      </p>
+      <div className="co-change-table-wrap">
+        <table className="co-change-table">
+          <thead>
+            <tr>
+              <th onClick={() => toggleSort("file_a")} className="sortable">
+                File A{indicator("file_a")}
+              </th>
+              <th onClick={() => toggleSort("file_b")} className="sortable">
+                File B{indicator("file_b")}
+              </th>
+              <th onClick={() => toggleSort("co_change_count")} className="sortable right">
+                Shared commits{indicator("co_change_count")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((row, i) => (
+              <tr key={`${row.file_a}-${row.file_b}-${i}`}>
+                <td className="cell-path">{row.file_a}</td>
+                <td className="cell-path">{row.file_b}</td>
+                <td className="right strong">{row.co_change_count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
