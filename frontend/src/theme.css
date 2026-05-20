@@ -525,6 +525,59 @@ body {
   color: var(--text);
 }
 
+/* DevTools typography readability overrides on light cards */
+.app-main:not(:has(.dashboard-shell)) .devtools-card-title {
+  color: var(--text);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-card-purpose {
+  color: var(--text-muted);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-step {
+  color: var(--text);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-step strong {
+  color: var(--text);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-step-hint {
+  color: var(--text-muted);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-status-meta {
+  color: var(--text-muted);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-status-meta strong {
+  color: var(--text);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-label {
+  color: var(--text);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-label-sub {
+  color: var(--text-muted);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-link {
+  color: var(--accent-hover);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-link:hover {
+  color: var(--accent);
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-retrain-msg--ok {
+  color: #16a34a;
+}
+
+.app-main:not(:has(.dashboard-shell)) .devtools-retrain-msg--err {
+  color: #dc2626;
+}
+
 .btn-primary {
   background: var(--accent) !important;
   color: #fff !important;
