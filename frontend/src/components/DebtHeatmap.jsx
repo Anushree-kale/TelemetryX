@@ -1,5 +1,15 @@
 import { useMemo, useState } from "react";
-import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
+import {
+  ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  ZAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell
+} from "recharts";
 
 // Premium dynamic gradient from rich green -> warm amber -> elegant red
 function debtColor(score) {
@@ -16,72 +26,52 @@ function debtColor(score) {
   return `hsl(${hue}, 70%, 42%)`;
 }
 
-function TreemapNode(props) {
-  const { x, y, width, height, name, debtScore, loc, fullPath } = props;
-  if (width < 4 || height < 4) return null;
-
-  const label = name && name.length > 14 ? `${name.slice(0, 12)}…` : name;
-
-  // Only show text if block is big enough to prevent overlapping/noise
-  const showText = width > 55 && height > 28;
-
-  return (
-    <g>
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={debtColor(debtScore)}
-        stroke="#0c1015"
-        strokeWidth={1.5}
-        rx={3}
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div
+        className="custom-tooltip"
         style={{
-          transition: "all 0.25s ease",
-          cursor: "pointer",
+          background: "#121b26",
+          border: "1px solid #233041",
+          borderRadius: 8,
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+          color: "#f1f5f9",
+          padding: "8px 12px",
+          fontSize: "0.82rem",
+          maxWidth: 320,
         }}
-      />
-      {showText && (
-        <>
-          {/* Subtle text drop shadow for premium legibility */}
-          <text
-            x={x + 6}
-            y={y + 16}
-            fill="#000000"
-            fontSize={10}
-            fontWeight={600}
-            opacity={0.35}
-          >
-            {label}
-          </text>
-          <text
-            x={x + 6}
-            y={y + 15}
-            fill="#ffffff"
-            fontSize={10}
-            fontWeight={600}
-          >
-            {label}
-          </text>
-          {height > 40 && (
-            <text
-              x={x + 6}
-              y={y + 28}
-              fill="rgba(255, 255, 255, 0.7)"
-              fontSize={9}
-              fontWeight={400}
-            >
-              {loc} LOC
-            </text>
-          )}
-        </>
-      )}
-      <title>
-        {`${fullPath}\nLOC: ${loc}\nDebt: ${debtScore?.toFixed?.(1) ?? "—"}`}
-      </title>
-    </g>
-  );
-}
+      >
+        <p style={{ margin: 0, fontWeight: 600, color: "#f8fafc", wordBreak: "break-all" }}>
+          {data.fullPath}
+        </p>
+        <div
+          style={{
+            marginTop: 6,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "4px 12px",
+          }}
+        >
+          <div>
+            <strong>LOC:</strong> {data.loc}
+          </div>
+          <div>
+            <strong>Complexity:</strong> {data.complexity}
+          </div>
+          <div>
+            <strong>Churn (90d):</strong> {data.churn}
+          </div>
+          <div>
+            <strong>Debt Score:</strong> {data.debtScore?.toFixed(1) ?? "—"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function DebtHeatmap({ modules }) {
   const [minLoc, setMinLoc] = useState(25); // Default to >= 25 LOC to remove small noisy files
@@ -92,9 +82,10 @@ export default function DebtHeatmap({ modules }) {
       .map((m) => ({
         name: m.file_path.split("/").pop(),
         fullPath: m.file_path,
-        size: Math.max(1, m.lines_of_code ?? 1),
+        loc: m.lines_of_code ?? 0,
+        complexity: m.cyclomatic_complexity ?? 0,
+        churn: m.churn_90d ?? 0,
         debtScore: m.debt_score ?? 0,
-        loc: m.lines_of_code,
       }));
   }, [modules, minLoc]);
 
@@ -139,38 +130,62 @@ export default function DebtHeatmap({ modules }) {
           <p>No modules fit the selected minimum size filter.</p>
         </div>
       ) : (
-        <div style={{ position: "relative", width: "100%", height: 360 }}>
+        <div style={{ position: "relative", width: "100%", height: 380 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <Treemap
-              data={data}
-              dataKey="size"
-              aspectRatio={16 / 9}
-              stroke="#0c1015"
-              content={<TreemapNode />}
+            <ScatterChart
+              margin={{
+                top: 20,
+                right: 25,
+                bottom: 25,
+                left: 10,
+              }}
             >
-              <Tooltip
-                contentStyle={{
-                  background: "#121b26",
-                  border: "1px solid #233041",
-                  borderRadius: 8,
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-                  color: "#f1f5f9",
-                  padding: "8px 12px",
-                }}
-                formatter={(_, __, item) => {
-                  const p = item?.payload;
-                  if (!p) return null;
-                  return [
-                    <span style={{ color: "#f8fafc" }} key="val">
-                      <strong>LOC:</strong> {p.loc} &nbsp;·&nbsp; <strong>Debt:</strong> {p.debtScore?.toFixed(1)}
-                    </span>,
-                    <span style={{ color: "#94a3b8", fontSize: "0.85rem" }} key="path">
-                      {p.fullPath}
-                    </span>
-                  ];
+              <CartesianGrid strokeDasharray="3 3" stroke="#233041" opacity={0.5} />
+              <XAxis
+                type="number"
+                dataKey="loc"
+                name="Lines of Code"
+                stroke="#8b9cb3"
+                tick={{ fontSize: 10 }}
+                label={{
+                  value: "Lines of Code (LOC)",
+                  position: "insideBottom",
+                  offset: -12,
+                  fill: "#8b9cb3",
+                  fontSize: 11,
+                  fontWeight: 500,
                 }}
               />
-            </Treemap>
+              <YAxis
+                type="number"
+                dataKey="complexity"
+                name="Complexity"
+                stroke="#8b9cb3"
+                tick={{ fontSize: 10 }}
+                label={{
+                  value: "Cyclomatic Complexity",
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: 0,
+                  fill: "#8b9cb3",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}
+              />
+              <ZAxis type="number" dataKey="churn" range={[70, 450]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Scatter name="Modules" data={data}>
+                {data.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={debtColor(entry.debtScore)}
+                    stroke="#0c1015"
+                    strokeWidth={1}
+                    style={{ cursor: "pointer" }}
+                  />
+                ))}
+              </Scatter>
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
       )}

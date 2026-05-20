@@ -152,6 +152,27 @@ def get_job_shap_summary(job_id: int):
     return {"job_id": job_id, "features": rows}
 
 
+@app.get("/jobs/{job_id}/failure-risk")
+def get_job_failure_risk(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    preds = database.get_job_failure_predictions(job_id)
+    if not preds:
+        return {
+            "status": "pending",
+            "job_id": job_id,
+            "predictions": []
+        }
+    
+    return {
+        "status": "complete",
+        "job_id": job_id,
+        "predictions": preds
+    }
+
+
 @app.get("/model/status")
 def get_model_status():
     scorer = get_scorer()

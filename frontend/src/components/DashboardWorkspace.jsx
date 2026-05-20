@@ -15,6 +15,7 @@ import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
+import FailureRiskTab from "./FailureRiskTab";
 import { PANEL_TITLES } from "../labels";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
@@ -209,6 +210,20 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                 </div>
                 <p className="card-hint">Size = LOC · Color = debt score</p>
                 <DebtHeatmap modules={modules} />
+              </div>
+            )}
+
+            {activePanel === "failure" && jobId && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>Failure risk prediction</h2>
+                  <SectionHint label="Failure risk">
+                    <p>
+                      LSTM risk scores. Predicts likelihood of future bugs and failures based on churn, complexity, and commit cadence.
+                    </p>
+                  </SectionHint>
+                </div>
+                <FailureRiskTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 

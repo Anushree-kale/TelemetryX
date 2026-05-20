@@ -36,6 +36,7 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             database.update_job_progress(job_id, 85, "Saving results…")
             _persist_results(job_id, enriched, co_pairs)
             post_analysis.run_post_analysis(job_id, co_change_pairs=co_pairs)
+            predict_failures_task.delay(job_id)
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
             return {"job_id": job_id, "status": "complete", "cached": True}
@@ -65,7 +66,7 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             post_analysis.run_post_analysis(
                 job_id, repo_path=repo_path, co_change_pairs=co_change_pairs
             )
-
+            predict_failures_task.delay(job_id)
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
             return {"job_id": job_id, "status": "complete", "module_count": len(enriched)}
@@ -96,3 +97,23 @@ def _persist_results(
 
     if co_change_pairs:
         database.insert_co_change_pairs(job_id, co_change_pairs)
+
+
+@celery_app.task(name="tasks.predict_failures_task")
+def predict_failures_task(job_id: int) -> None:
+    import sys
+    import pathlib
+    app_dir = str(pathlib.Path(__file__).parent.resolve())
+    if app_dir not in sys.path:
+        sys.path.insert(0, app_dir)
+
+    import failure_predictor
+    import logging
+    try:
+        failure_predictor.predict_failures(job_id)
+    except Exception as exc:
+        logging.getLogger(__name__).error(
+            f"Failed to run failure predictor task for job {job_id}: {exc}",
+            exc_info=True
+        )
+

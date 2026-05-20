@@ -96,6 +96,16 @@ CREATE TABLE IF NOT EXISTS shap_explanations (
     contribution_pct FLOAT,
     display_value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS failure_predictions (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    module_id INTEGER REFERENCES module_metrics(id) ON DELETE CASCADE,
+    file_path TEXT NOT NULL,
+    risk_score FLOAT NOT NULL,
+    risk_level TEXT NOT NULL,
+    predicted_at TIMESTAMP DEFAULT NOW()
+);
 """
 
 MIGRATION_SQL = """
@@ -123,6 +133,16 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS cluster_id INTEGER DEFAULT 0
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS downstream_count INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT FALSE;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS failure_predictions (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    module_id INTEGER REFERENCES module_metrics(id) ON DELETE CASCADE,
+    file_path TEXT NOT NULL,
+    risk_score FLOAT NOT NULL,
+    risk_level TEXT NOT NULL,
+    predicted_at TIMESTAMP DEFAULT NOW()
+);
 """
 
 
@@ -730,4 +750,108 @@ def get_active_job_for_repo(repo_url: str) -> dict[str, Any] | None:
         )
         row = cur.fetchone()
         return dict(row) if row else None
+
+
+def insert_failure_predictions(
+    job_id: int,
+    predictions: list[dict[str, Any]],
+) -> None:
+    if not predictions:
+        return
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM failure_predictions WHERE job_id = %s", (job_id,))
+        psycopg2.extras.execute_batch(
+            cur,
+            """
+            INSERT INTO failure_predictions
+                (job_id, module_id, file_path, risk_score, risk_level)
+            VALUES (%(job_id)s, %(module_id)s, %(file_path)s, %(risk_score)s, %(risk_level)s)
+            """,
+            [{**p, "job_id": job_id} for p in predictions],
+        )
+
+
+def get_job_failure_predictions(job_id: int) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, job_id, module_id, file_path, risk_score, risk_level, predicted_at
+            FROM failure_predictions
+            WHERE job_id = %s
+            ORDER BY risk_score DESC
+            """,
+            (job_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_file_metric_history(file_path: str, current_job_id: int) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit
+            FROM module_metrics mm
+            JOIN analysis_jobs aj ON mm.job_id = aj.id
+            WHERE mm.file_path = %s 
+              AND aj.status = 'complete' 
+              AND aj.id <= %s
+            ORDER BY aj.created_at ASC
+            LIMIT 10
+            """,
+            (file_path, current_job_id),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> dict[str, list[dict[str, Any]]]:
+    if not file_paths:
+        return {}
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            WITH ranked_history AS (
+                SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit,
+                       ROW_NUMBER() OVER (PARTITION BY mm.file_path ORDER BY aj.created_at DESC) as rk
+                FROM module_metrics mm
+                JOIN analysis_jobs aj ON mm.job_id = aj.id
+                WHERE mm.file_path = ANY(%s) 
+                  AND aj.status = 'complete' 
+                  AND aj.id <= %s
+            )
+            SELECT file_path, churn_90d, cyclomatic_complexity, days_since_last_commit
+            FROM ranked_history
+            WHERE rk <= 10
+            ORDER BY rk DESC
+            """,
+            (file_paths, current_job_id),
+        )
+        rows = cur.fetchall()
+        
+        # Group by file_path
+        history_by_file = {path: [] for path in file_paths}
+        for row in rows:
+            path = row["file_path"]
+            if path in history_by_file:
+                history_by_file[path].append({
+                    "churn_90d": row["churn_90d"],
+                    "cyclomatic_complexity": row["cyclomatic_complexity"],
+                    "days_since_last_commit": row["days_since_last_commit"]
+                })
+        return history_by_file
+
+
+def get_job_modules_raw(job_id: int) -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, file_path, churn_90d, cyclomatic_complexity, days_since_last_commit
+            FROM module_metrics
+            WHERE job_id = %s
+            """,
+            (job_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+
 

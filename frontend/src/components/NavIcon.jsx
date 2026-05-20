@@ -37,6 +37,16 @@ const ICONS = {
   link: (
     <path d="M10 14a4 4 0 005.66 0l2-2a4 4 0 00-5.66-5.66l-1 1M14 10a4 4 0 00-5.66 0l-2 2a4 4 0 005.66 5.66l1-1" />
   ),
+  "alert-triangle": (
+    <path
+      d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z M12 9v4 M12 17h.01"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
 };
 
 export default function NavIcon({ name, size = 20 }) {
