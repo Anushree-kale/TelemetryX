@@ -134,19 +134,19 @@ export default function FailureRiskTab({ jobId, apiBase }) {
         return {
           background: "rgba(239, 68, 68, 0.15)",
           border: "1px solid #ef4444",
-          color: "#fca5a5",
+          color: "#b91c1c",
         };
       case "medium":
         return {
           background: "rgba(245, 158, 11, 0.15)",
           border: "1px solid #f59e0b",
-          color: "#fde047",
+          color: "#b45309",
         };
       default:
         return {
           background: "rgba(16, 185, 129, 0.15)",
           border: "1px solid #10b981",
-          color: "#a7f3d0",
+          color: "#047857",
         };
     }
   };
@@ -169,8 +169,8 @@ export default function FailureRiskTab({ jobId, apiBase }) {
         </div>
       ) : (
         <>
-          <div className="card" style={{ background: "#0f141a", border: "1px solid #1a222d", marginBottom: "1.5rem" }}>
-            <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#f8fafc" }}>
+          <div className="failure-risk-widget">
+            <h3>
               Top 10 Highest Risk Modules
             </h3>
             <div style={{ width: "100%", height: 300 }}>
@@ -180,7 +180,7 @@ export default function FailureRiskTab({ jobId, apiBase }) {
                   data={topRiskData}
                   margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                 >
-                  <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" horizontal={false} />
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" horizontal={false} />
                   <XAxis
                     type="number"
                     domain={[0, 1]}
@@ -207,40 +207,34 @@ export default function FailureRiskTab({ jobId, apiBase }) {
             </div>
           </div>
 
-          <div className="card" style={{ background: "#0f141a", border: "1px solid #1a222d" }}>
-            <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#f8fafc" }}>
+          <div className="failure-risk-widget">
+            <h3>
               Failure Risk Directory ({predictions.length} modules)
             </h3>
             <div style={{ overflowX: "auto" }}>
-              <table className="inventory-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="failure-risk-table">
                 <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "1px solid #1e293b" }}>
-                    <th style={{ padding: "0.75rem 1rem", color: "#94a3b8", fontSize: "0.85rem" }}>
+                  <tr>
+                    <th>
                       Module Path
                     </th>
-                    <th style={{ padding: "0.75rem 1rem", color: "#94a3b8", fontSize: "0.85rem", width: "120px" }}>
+                    <th style={{ width: "120px" }}>
                       Risk Level
                     </th>
-                    <th style={{ padding: "0.75rem 1rem", color: "#94a3b8", fontSize: "0.85rem", width: "150px" }}>
+                    <th style={{ width: "150px" }}>
                       Failure Likelihood
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {predictions.map((p) => (
-                    <tr key={p.id || p.module_id} style={{ borderBottom: "1px solid #151f2b" }}>
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "#cbd5e1",
-                          fontSize: "0.85rem",
-                          fontFamily: "monospace",
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        {p.file_path}
+                    <tr key={p.id || p.module_id}>
+                      <td>
+                        <span className="failure-risk-path">
+                          {p.file_path}
+                        </span>
                       </td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
+                      <td>
                         <span
                           style={{
                             padding: "0.2rem 0.5rem",
@@ -257,7 +251,6 @@ export default function FailureRiskTab({ jobId, apiBase }) {
                       </td>
                       <td
                         style={{
-                          padding: "0.75rem 1rem",
                           color: getRiskColor(p.risk_score),
                           fontWeight: 600,
                           fontSize: "0.9rem",
@@ -276,3 +269,4 @@ export default function FailureRiskTab({ jobId, apiBase }) {
     </div>
   );
 }
+
