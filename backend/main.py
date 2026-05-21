@@ -44,6 +44,7 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     repo_url: HttpUrl
+    privacy_mode: bool = False
 
 
 class AnalyzeResponse(BaseModel):
@@ -62,8 +63,8 @@ class JobStatusResponse(BaseModel):
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_repo_endpoint(body: AnalyzeRequest):
     repo_url = str(body.repo_url)
-    job_id = database.create_job(repo_url)
-    analyze_repo_task.delay(job_id, repo_url)
+    job_id = database.create_job(repo_url, privacy_mode=body.privacy_mode)
+    analyze_repo_task.delay(job_id, repo_url, privacy_mode=body.privacy_mode)
     return AnalyzeResponse(job_id=job_id, status="pending")
 
 
@@ -96,7 +97,29 @@ def get_results(job_id: int):
         "progress_message": job.get("progress_message") or "",
         "error_detail": job.get("error_detail"),
         "created_at": job["created_at"].isoformat() if job["created_at"] else None,
+        "privacy_mode": job.get("privacy_mode", False),
         "modules": modules,
+    }
+
+
+@app.get("/jobs/{job_id}/burnout")
+def get_burnout_assessment(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    assessment = database.get_burnout_assessment(job_id)
+    if not assessment:
+        return {"status": "pending", "job_id": job_id}
+
+    return {
+        "status": "complete",
+        "job_id": job_id,
+        "risk_level": assessment["risk_level"],
+        "risk_score": assessment["risk_score"],
+        "top_drivers": assessment["top_drivers"],
+        "metrics": assessment["metrics"],
+        "created_at": assessment["created_at"],
     }
 
 

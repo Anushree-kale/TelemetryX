@@ -1,0 +1,186 @@
+import { useEffect, useState } from "react";
+import SectionHint from "./SectionHint";
+
+const CircularGauge = ({ percentage, color, label }) => {
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage * circumference);
+
+  return (
+    <div style={{ position: "relative", width: "90px", height: "90px", flexShrink: 0 }}>
+      <svg width="90" height="90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" strokeWidth="6" />
+        <circle 
+          cx="50" cy="50" r="40" 
+          fill="none" 
+          stroke={color} 
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          transform="rotate(-90 50 50)"
+          style={{ transition: "stroke-dashoffset 1s ease-in-out" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--text)" }}>{label}</span>
+      </div>
+    </div>
+  );
+};
+
+export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://localhost:8000", onNavigate }) {
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    if (!repoUrl) return;
+    fetch(`${apiBase}/jobs/history?repo_url=${encodeURIComponent(repoUrl)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setHistory(data);
+        }
+      })
+      .catch((err) => console.error("Error loading historical jobs:", err));
+  }, [repoUrl, apiBase]);
+
+  if (!modules.length) return null;
+
+  // Current values
+  const withScore = modules.filter((m) => m.debt_score != null);
+  const avgDebt = withScore.length > 0
+      ? withScore.reduce((s, m) => s + m.debt_score, 0) / withScore.length
+      : 0;
+
+  const highDebtRoi = modules
+    .filter((m) => m.risk_level === "high")
+    .reduce((s, m) => s + (m.roi_days ?? 0), 0);
+    
+  const currentJob = history.length > 0 ? history[history.length - 1] : null;
+  const previousJob = history.length > 1 ? history[history.length - 2] : null;
+
+  const failureRisk = currentJob?.avg_failure_risk || 0;
+  const prevFailureRisk = previousJob?.avg_failure_risk || 0;
+
+  const burnoutSignal = currentJob?.burnout_score || 0;
+  const prevBurnoutSignal = previousJob?.burnout_score || 0;
+  
+  const prevAvgDebt = previousJob?.avg_debt_score || avgDebt;
+  const prevHighDebtRoi = previousJob?.high_risk_roi || highDebtRoi;
+
+  const renderTrendArrow = (current, previous, isHigherWorse = true) => {
+    if (Math.abs(current - previous) < 0.01) {
+      return <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>→</span>;
+    }
+    const isIncrease = current > previous;
+    const isBad = isHigherWorse ? isIncrease : !isIncrease;
+    return (
+      <span style={{ color: isBad ? "#ef4444" : "#10b981", marginLeft: "4px" }}>
+        {isIncrease ? "▲" : "▼"}
+      </span>
+    );
+  };
+
+  const getDebtColor = (val) => val >= 60 ? "#ef4444" : val >= 35 ? "#f59e0b" : "#10b981";
+  const getRiskColor = (val) => val >= 0.7 ? "#ef4444" : val >= 0.4 ? "#f59e0b" : "#10b981";
+
+  const cards = [
+    {
+      id: "failure",
+      title: "Failure Risk",
+      hint: "LSTM average prediction score for failure and bugs.",
+      value: failureRisk,
+      percentage: failureRisk,
+      label: `${(failureRisk * 100).toFixed(0)}%`,
+      color: getRiskColor(failureRisk),
+      trend: renderTrendArrow(failureRisk, prevFailureRisk, true)
+    },
+    {
+      id: "heatmap",
+      title: "Debt Score",
+      hint: "Average module-level technical debt.",
+      value: avgDebt,
+      percentage: avgDebt / 100,
+      label: avgDebt.toFixed(0),
+      color: getDebtColor(avgDebt),
+      trend: renderTrendArrow(avgDebt, prevAvgDebt, true)
+    },
+    {
+      id: "teamhealth",
+      title: "Burnout Signal",
+      hint: "Burnout radar cohort-level classification.",
+      value: burnoutSignal,
+      percentage: burnoutSignal,
+      label: `${(burnoutSignal * 100).toFixed(0)}%`,
+      color: getRiskColor(burnoutSignal),
+      trend: renderTrendArrow(burnoutSignal, prevBurnoutSignal, true)
+    },
+    {
+      id: "fixes",
+      title: "Fix ROI",
+      hint: "Sum of high-risk modules' remediation effort in days.",
+      value: highDebtRoi,
+      percentage: Math.min(highDebtRoi / 100, 1),
+      label: highDebtRoi > 0 ? `${highDebtRoi.toFixed(0)}d` : '0d',
+      color: "#8b5cf6",
+      trend: renderTrendArrow(highDebtRoi, prevHighDebtRoi, true)
+    }
+  ];
+
+  return (
+    <section className="overview-scorecard-section" aria-label="Unified Scorecard">
+      <div className="summary-grid-heading" style={{ marginBottom: "1rem" }}>
+        <h2 className="summary-grid-title">Unified Risk Scorecard</h2>
+        <SectionHint label="Scorecard">
+          <p>
+            Key executive indicators of repository health. Click on a quadrant to drill down into the respective detailed panel.
+          </p>
+        </SectionHint>
+      </div>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
+        {cards.map(card => (
+          <div 
+            key={card.id} 
+            className="scorecard-quadrant"
+            onClick={() => onNavigate(card.id)}
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s, border-color 0.2s",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.15)";
+              e.currentTarget.style.borderColor = "var(--border-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+              e.currentTarget.style.borderColor = "var(--border)";
+            }}
+          >
+            <CircularGauge percentage={card.percentage} color={card.color} label={card.label} />
+            <div style={{ marginLeft: "1.5rem", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem", color: "var(--text)" }}>
+                  {card.title}
+                </h3>
+                {card.trend}
+              </div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                {card.hint}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

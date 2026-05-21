@@ -11,7 +11,8 @@ import CoChangeTab from "./CoChangeTab";
 import HistoryTrends from "./HistoryTrends";
 import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
-import ResultsOverviewBanner from "./ResultsOverviewBanner";
+import OverviewScorecard from "./OverviewScorecard";
+import TeamHealthTab from "./TeamHealthTab";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
@@ -157,8 +158,12 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
             {activePanel === "overview" && (
               <>
-                <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
-                <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />
+                <OverviewScorecard 
+                  modules={modules} 
+                  repoUrl={activeRepoUrl} 
+                  apiBase={apiBase} 
+                  onNavigate={setActivePanel} 
+                />
               </>
             )}
 
@@ -224,6 +229,20 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   </SectionHint>
                 </div>
                 <FailureRiskTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            {activePanel === "teamhealth" && jobId && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>Team health</h2>
+                  <SectionHint label="Team health">
+                    <p>
+                      Burnout Radar predicting risk levels using XGBoost.
+                    </p>
+                  </SectionHint>
+                </div>
+                <TeamHealthTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 

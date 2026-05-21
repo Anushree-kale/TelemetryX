@@ -22,7 +22,7 @@ def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 @celery_app.task(bind=True, name="tasks.analyze_repo_task")
-def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
+def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = False) -> dict[str, Any]:
     try:
         database.update_job_status(job_id, "running")
         database.update_job_progress(job_id, 5, "Starting analysis…")
@@ -32,11 +32,17 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             database.update_job_progress(job_id, 40, "Using cached analysis (recent)")
             modules = cached.get("modules", cached) if isinstance(cached, dict) else cached
             co_pairs = cached.get("co_change_pairs", []) if isinstance(cached, dict) else []
+            
+            if privacy_mode:
+                from privacy import dp_engine
+                modules = dp_engine.perturb_metrics(modules)
+                
             enriched = _enrich_metrics(modules)
             database.update_job_progress(job_id, 85, "Saving results…")
             _persist_results(job_id, enriched, co_pairs)
             post_analysis.run_post_analysis(job_id, co_change_pairs=co_pairs)
             predict_failures_task.delay(job_id)
+            predict_burnout_task.delay(job_id)
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
             return {"job_id": job_id, "status": "complete", "cached": True}
@@ -57,6 +63,10 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             )
 
             database.update_job_progress(job_id, 75, "Running models…")
+            if privacy_mode:
+                from privacy import dp_engine
+                raw_metrics = dp_engine.perturb_metrics(raw_metrics)
+                
             enriched = _enrich_metrics(raw_metrics)
 
             database.update_job_progress(job_id, 90, "Saving results…")
@@ -67,6 +77,7 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
                 job_id, repo_path=repo_path, co_change_pairs=co_change_pairs
             )
             predict_failures_task.delay(job_id)
+            predict_burnout_task.delay(job_id)
             database.update_job_progress(job_id, 100, "Complete")
             database.update_job_status(job_id, "complete")
             return {"job_id": job_id, "status": "complete", "module_count": len(enriched)}
@@ -114,6 +125,25 @@ def predict_failures_task(job_id: int) -> None:
     except Exception as exc:
         logging.getLogger(__name__).error(
             f"Failed to run failure predictor task for job {job_id}: {exc}",
+            exc_info=True
+        )
+
+
+@celery_app.task(name="tasks.predict_burnout_task")
+def predict_burnout_task(job_id: int) -> None:
+    import sys
+    import pathlib
+    app_dir = str(pathlib.Path(__file__).parent.resolve())
+    if app_dir not in sys.path:
+        sys.path.insert(0, app_dir)
+
+    import burnout_model
+    import logging
+    try:
+        burnout_model.predict_burnout(job_id)
+    except Exception as exc:
+        logging.getLogger(__name__).error(
+            f"Failed to run burnout predictor task for job {job_id}: {exc}",
             exc_info=True
         )
 

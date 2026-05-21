@@ -12,6 +12,7 @@ export default function AnalyzeForm({
   compact = false,
 }) {
   const [repoUrl, setRepoUrl] = useState("");
+  const [privacyMode, setPrivacyMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState({ pct: 0, message: "" });
@@ -76,7 +77,7 @@ export default function AnalyzeForm({
       const res = await fetch(`${apiBase}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo_url: url }),
+        body: JSON.stringify({ repo_url: url, privacy_mode: privacyMode }),
       });
 
       if (!res.ok) {
@@ -138,6 +139,19 @@ export default function AnalyzeForm({
         <button type="submit" disabled={loading} className="btn-primary btn-analyze">
           {loading ? "Analysing…" : "Analyze"}
         </button>
+      </div>
+
+      <div className="privacy-toggle-row" style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <input
+          type="checkbox"
+          id="privacyMode"
+          checked={privacyMode}
+          onChange={(e) => setPrivacyMode(e.target.checked)}
+          disabled={loading}
+        />
+        <label htmlFor="privacyMode" style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          Enable Synthetic Privacy (DP Engine)
+        </label>
       </div>
 
       {recentRepos.length > 0 && !compact && (
