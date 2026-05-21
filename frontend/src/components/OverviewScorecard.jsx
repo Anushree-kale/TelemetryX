@@ -9,7 +9,7 @@ const CircularGauge = ({ percentage, color, label }) => {
   return (
     <div style={{ position: "relative", width: "90px", height: "90px", flexShrink: 0 }}>
       <svg width="90" height="90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" strokeWidth="6" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#2a3548" strokeWidth="6" />
         <circle 
           cx="50" cy="50" r="40" 
           fill="none" 
@@ -23,7 +23,7 @@ const CircularGauge = ({ percentage, color, label }) => {
         />
       </svg>
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--text)" }}>{label}</span>
+        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#e7ecf3" }}>{label}</span>
       </div>
     </div>
   );
@@ -70,7 +70,7 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
 
   const renderTrendArrow = (current, previous, isHigherWorse = true) => {
     if (Math.abs(current - previous) < 0.01) {
-      return <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>→</span>;
+      return <span style={{ color: "#8b9cb3", marginLeft: "4px" }}>→</span>;
     }
     const isIncrease = current > previous;
     const isBad = isHigherWorse ? isIncrease : !isIncrease;
@@ -145,8 +145,8 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
             className="scorecard-quadrant"
             onClick={() => onNavigate(card.id)}
             style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
+              background: "#1a2332",
+              border: "1px solid #2a3548",
               borderRadius: "12px",
               padding: "1.5rem",
               display: "flex",
@@ -158,23 +158,23 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-4px)";
               e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.15)";
-              e.currentTarget.style.borderColor = "var(--border-hover)";
+              e.currentTarget.style.borderColor = "#3b82f6";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
-              e.currentTarget.style.borderColor = "var(--border)";
+              e.currentTarget.style.borderColor = "#2a3548";
             }}
           >
             <CircularGauge percentage={card.percentage} color={card.color} label={card.label} />
             <div style={{ marginLeft: "1.5rem", display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem", color: "var(--text)" }}>
+                <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem", color: "#e7ecf3" }}>
                   {card.title}
                 </h3>
                 {card.trend}
               </div>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#8b9cb3", lineHeight: 1.4 }}>
                 {card.hint}
               </p>
             </div>

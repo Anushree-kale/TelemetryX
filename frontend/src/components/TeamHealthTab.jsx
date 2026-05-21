@@ -43,7 +43,7 @@ export default function TeamHealthTab({ jobId, apiBase }) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>
         <div className="spinner" style={{ marginBottom: "1rem" }}>⏳</div>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
+        <p style={{ color: "#8b9cb3", fontSize: "0.95rem" }}>
           Running Burnout Radar classifier on cohort metrics…
         </p>
       </div>
@@ -60,7 +60,7 @@ export default function TeamHealthTab({ jobId, apiBase }) {
 
   if (!assessment) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+      <div style={{ padding: "2rem", textAlign: "center", color: "#8b9cb3" }}>
         No team health data available for this job.
       </div>
     );
@@ -90,12 +90,12 @@ export default function TeamHealthTab({ jobId, apiBase }) {
 
       <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "2rem" }}>
         {/* Risk Gauge */}
-        <div className="team-health-widget" style={{ flex: "1 1 300px", background: "var(--bg-card)", padding: "1.5rem", borderRadius: "8px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>Burnout Risk</h3>
+        <div className="team-health-widget" style={{ flex: "1 1 300px", background: "#1a2332", padding: "1.5rem", borderRadius: "8px", border: "1px solid #2a3548", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#e7ecf3" }}>Burnout Risk</h3>
           
           <div style={{ position: "relative", width: "120px", height: "120px" }}>
             <svg width="120" height="120" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="45" fill="none" stroke="var(--border)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#2a3548" strokeWidth="8" />
               <circle 
                 cx="50" cy="50" r="45" 
                 fill="none" 
@@ -130,42 +130,42 @@ export default function TeamHealthTab({ jobId, apiBase }) {
         </div>
 
         {/* Top Drivers */}
-        <div className="team-health-widget" style={{ flex: "2 1 400px", background: "var(--bg-card)", padding: "1.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-          <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>Contributing Factors</h3>
+        <div className="team-health-widget" style={{ flex: "2 1 400px", background: "#1a2332", padding: "1.5rem", borderRadius: "8px", border: "1px solid #2a3548" }}>
+          <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#e7ecf3" }}>Contributing Factors</h3>
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {top_drivers && top_drivers.map((d, i) => (
-              <li key={i} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: i < top_drivers.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <li key={i} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: i < top_drivers.length - 1 ? "1px solid #2a3548" : "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
-                  <strong style={{ color: "var(--text)" }}>{d.label}</strong>
-                  <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{d.display_value}</span>
+                  <strong style={{ color: "#e7ecf3" }}>{d.label}</strong>
+                  <span style={{ fontWeight: 600, color: "#c5d0e0" }}>{d.display_value}</span>
                 </div>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: "0.85rem", color: "#8b9cb3" }}>
                   SHAP Contribution: {d.shap_value > 0 ? "+" : ""}{d.shap_value.toFixed(3)}
                 </div>
               </li>
             ))}
             {(!top_drivers || top_drivers.length === 0) && (
-              <li style={{ color: "var(--text-muted)" }}>No primary drivers identified.</li>
+              <li style={{ color: "#8b9cb3" }}>No primary drivers identified.</li>
             )}
           </ul>
         </div>
       </div>
 
-      <div className="team-health-widget" style={{ background: "var(--bg-card)", padding: "1.5rem", borderRadius: "8px", border: "1px solid var(--border)" }}>
-        <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>Team-Cohort Metrics</h3>
+      <div className="team-health-widget" style={{ background: "#1a2332", padding: "1.5rem", borderRadius: "8px", border: "1px solid #2a3548" }}>
+        <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", color: "#e7ecf3" }}>Team-Cohort Metrics</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                <th style={{ padding: "0.75rem", color: "var(--text-muted)" }}>Metric</th>
-                <th style={{ padding: "0.75rem", color: "var(--text-muted)" }}>Value</th>
+              <tr style={{ borderBottom: "1px solid #2a3548" }}>
+                <th style={{ padding: "0.75rem", color: "#8b9cb3" }}>Metric</th>
+                <th style={{ padding: "0.75rem", color: "#8b9cb3" }}>Value</th>
               </tr>
             </thead>
             <tbody>
               {metrics && Object.entries(metrics).map(([key, val], i) => (
-                <tr key={key} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "0.75rem", color: "var(--text)", fontFamily: "monospace" }}>{key}</td>
-                  <td style={{ padding: "0.75rem", color: "var(--text-secondary)" }}>
+                <tr key={key} style={{ borderBottom: "1px solid #1e2a3a" }}>
+                  <td style={{ padding: "0.75rem", color: "#e7ecf3", fontFamily: "monospace" }}>{key}</td>
+                  <td style={{ padding: "0.75rem", color: "#c5d0e0" }}>
                     {typeof val === 'number' ? (key.includes("pct") || key.includes("ratio") ? `${(val*100).toFixed(1)}%` : val.toFixed(1)) : val}
                   </td>
                 </tr>
