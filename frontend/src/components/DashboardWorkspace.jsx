@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import AnalyzeForm from "./AnalyzeForm";
-import DebtHeatmap from "./DebtHeatmap";
 import MetricsChart from "./MetricsChart";
 import ModulesTable from "./ModulesTable";
 import SummaryCards from "./SummaryCards";
@@ -200,22 +199,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   <MetricsChart modules={modules} />
                 </div>
               </>
-            )}
-
-            {activePanel === "heatmap" && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Technical debt heatmap</h2>
-                  <SectionHint label="Heatmap">
-                    <p>
-                      Rectangle size reflects lines of code. Color reflects debt score (lower is
-                      healthier).
-                    </p>
-                  </SectionHint>
-                </div>
-                <p className="card-hint">Size = LOC · Color = debt score</p>
-                <DebtHeatmap modules={modules} />
-              </div>
             )}
 
             {activePanel === "failure" && jobId && (
