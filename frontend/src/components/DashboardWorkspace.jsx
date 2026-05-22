@@ -17,6 +17,7 @@ import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
 import FailureRiskTab from "./FailureRiskTab";
 import { PANEL_TITLES } from "../labels";
+import ExportButton from "./ExportButton";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
 /** landing → scanning → results → sidebar-ready */
@@ -153,6 +154,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
           <div className="results-panel">
             <header className="panel-header">
               <h2>{PANEL_TITLES[activePanel]}</h2>
+              <ExportButton jobId={jobId} apiBase={apiBase} />
             </header>
 
             {activePanel === "overview" && (

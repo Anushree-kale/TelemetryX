@@ -1,8 +1,11 @@
 import logging
+import os
 from typing import Any
 import database
 
 logger = logging.getLogger(__name__)
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "failure_model.pth")
 
 try:
     import torch
@@ -33,6 +36,12 @@ if TORCH_AVAILABLE:
     # Initialize a single global model instance to avoid instantiation overhead during prediction loops
     torch.manual_seed(42)
     GLOBAL_MODEL = LSTMFailurePredictor(input_dim=3, hidden_dim=8, num_layers=1)
+    if os.path.exists(MODEL_PATH):
+        try:
+            GLOBAL_MODEL.load_state_dict(torch.load(MODEL_PATH, weights_only=True))
+            logger.info(f"Loaded failure model from {MODEL_PATH}")
+        except Exception as e:
+            logger.error(f"Failed to load failure model: {e}")
     GLOBAL_MODEL.eval()
 else:
     GLOBAL_MODEL = None
@@ -40,9 +49,69 @@ else:
 
 
 def train_failure_model(historical_data: Any) -> None:
-    """Stubbed training function for PyTorch LSTM model."""
-    logger.info("Skipping model training (training is currently stubbed).")
-    pass
+    """Trains PyTorch LSTM model to predict failure risk heuristic."""
+    if not TORCH_AVAILABLE:
+        logger.warning("Torch not available. Cannot train.")
+        return
+        
+    X = []
+    y = []
+    
+    for file_path, history in historical_data.items():
+        if len(history) < 3:
+            continue
+            
+        seq_data = []
+        for h in history:
+            seq_data.append([
+                float(h.get("churn_90d") or 0.0),
+                float(h.get("cyclomatic_complexity") or 0.0),
+                float(h.get("days_since_last_commit") or 0.0)
+            ])
+            
+        last_h = history[-1]
+        churn = float(last_h.get("churn_90d") or 0.0)
+        complexity = float(last_h.get("cyclomatic_complexity") or 0.0)
+        days_since_last_commit = float(last_h.get("days_since_last_commit") or 0.0)
+        
+        churn_score = min(churn / 20.0, 1.0)
+        complexity_score = min(complexity / 15.0, 1.0)
+        recency_score = max(0.0, 1.0 - (days_since_last_commit / 90.0))
+        heuristic_score = (churn_score * 0.45) + (complexity_score * 0.40) + (recency_score * 0.15)
+        
+        X.append(seq_data)
+        y.append(heuristic_score)
+        
+    if not X:
+        logger.warning("No valid sequences found for training failure model.")
+        return
+        
+    optimizer = torch.optim.Adam(GLOBAL_MODEL.parameters(), lr=0.01)
+    criterion = nn.MSELoss()
+    
+    GLOBAL_MODEL.train()
+    epochs = 50
+    for epoch in range(epochs):
+        total_loss = 0.0
+        for seq, target in zip(X, y):
+            x_tensor = torch.tensor([seq], dtype=torch.float32)
+            y_tensor = torch.tensor([[target]], dtype=torch.float32)
+            
+            optimizer.zero_grad()
+            output = GLOBAL_MODEL(x_tensor)
+            loss = criterion(output, y_tensor)
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += loss.item()
+            
+        if (epoch + 1) % 10 == 0:
+            logger.info(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / len(X):.4f}")
+            
+    GLOBAL_MODEL.eval()
+    torch.save(GLOBAL_MODEL.state_dict(), MODEL_PATH)
+    logger.info(f"Trained and saved failure model to {MODEL_PATH}")
+    print(f"Trained failure model on {len(X)} files → {MODEL_PATH}")
 
 
 def predict_failures(job_id: int) -> None:

@@ -5,9 +5,11 @@ from urllib.parse import unquote
 
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel, HttpUrl
 
 import database
+import export as job_export
 import post_analysis
 from debt_model import MODEL_PATH, get_scorer
 from graph_builder import graph_from_stored_json
@@ -79,6 +81,36 @@ def get_job_status(job_id: int):
         progress_pct=job.get("progress_pct") or 0,
         progress_message=job.get("progress_message") or "",
         error_detail=job.get("error_detail"),
+    )
+
+
+@app.get("/jobs/{job_id}/export")
+def export_job_results(job_id: int, format: str = "csv", limit: int = 5000):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Job analysis is not complete yet")
+
+    limit = max(1, min(limit, 50_000))
+    modules = database.get_job_modules(job_id)
+    fmt = format.lower().strip()
+
+    if fmt == "csv":
+        body = job_export.build_csv(modules, limit)
+        media_type = "text/csv; charset=utf-8"
+        filename = f"job_{job_id}_export.csv"
+    elif fmt == "pdf":
+        body = job_export.build_pdf(job, modules, limit)
+        media_type = "application/pdf"
+        filename = f"job_{job_id}_export.pdf"
+    else:
+        raise HTTPException(status_code=400, detail="format must be csv or pdf")
+
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
