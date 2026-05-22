@@ -2,6 +2,21 @@ import OrangeCat from "./OrangeCat";
 import NavIcon from "./NavIcon";
 import { PANELS } from "../labels";
 
+const NAV_GROUPS = [
+  {
+    label: "INTELLIGENCE",
+    panels: ["overview", "failure", "teamhealth"]
+  },
+  {
+    label: "CODE QUALITY",
+    panels: ["fixes", "charts", "files"]
+  },
+  {
+    label: "GRAPH",
+    panels: ["graph", "clusters", "cochange"]
+  }
+];
+
 export default function SideNav({
   activePanel,
   onSelect,
@@ -25,29 +40,40 @@ export default function SideNav({
       )}
 
       <nav className="side-rail-nav">
-        <ul className="side-rail-list">
-          {PANELS.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                className={`side-rail-btn ${activePanel === p.id ? "active" : ""}`}
-                onClick={() => onSelect(p.id)}
-                disabled={disabled && p.id !== "overview"}
-                title={p.hint}
-              >
-                <span className="side-rail-icon-wrap">
-                  <NavIcon name={p.icon} />
-                </span>
-                {expanded && (
-                  <span className="side-rail-labels">
-                    <span className="side-rail-label">{p.label}</span>
-                    <span className="side-rail-hint">{p.hint}</span>
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="side-rail-group">
+            {expanded && (
+              <div className="side-rail-group-label">{group.label}</div>
+            )}
+            <ul className="side-rail-list">
+              {group.panels.map((panelId) => {
+                const p = PANELS.find((p) => p.id === panelId);
+                if (!p) return null;
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className={`side-rail-btn ${activePanel === p.id ? "active" : ""}`}
+                      onClick={() => onSelect(p.id)}
+                      disabled={disabled && p.id !== "overview"}
+                      title={p.hint}
+                    >
+                      <span className="side-rail-icon-wrap">
+                        <NavIcon name={p.icon} />
+                      </span>
+                      {expanded && (
+                        <span className="side-rail-labels">
+                          <span className="side-rail-label">{p.label}</span>
+                          <span className="side-rail-hint">{p.hint}</span>
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       {expanded && disabled && (

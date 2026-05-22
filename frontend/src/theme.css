@@ -161,6 +161,19 @@ body {
   overflow-y: auto;
 }
 
+.side-rail-group {
+  margin-bottom: 0.75rem;
+}
+
+.side-rail-group-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 1rem 0.25rem;
+}
+
 .side-rail-list {
   list-style: none;
   margin: 0;
