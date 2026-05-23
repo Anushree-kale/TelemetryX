@@ -13,7 +13,11 @@ export default function ExportButton({ jobId, apiBase }) {
       const response = await fetch(`${apiBase}/jobs/${jobId}/export?format=${fmt}&limit=5000`);
       if (!response.ok) {
         const detail = await response.json().catch(() => ({}));
-        throw new Error(detail.detail || 'Export failed');
+        const message =
+          typeof detail.detail === 'string'
+            ? detail.detail
+            : `Export failed (${response.status})`;
+        throw new Error(message);
       }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

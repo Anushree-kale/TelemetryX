@@ -9,6 +9,7 @@ export default function AnalyzeForm({
   onComplete,
   onStatusChange,
   onAnalyzeStart,
+  onPrivacyModeChange,
   compact = false,
 }) {
   const [repoUrl, setRepoUrl] = useState("");
@@ -71,7 +72,8 @@ export default function AnalyzeForm({
     setLoading(true);
     setProgress({ pct: 0, message: "Submitting analysis…" });
     onStatusChange?.("pending");
-    onAnalyzeStart?.();
+    onAnalyzeStart?.(privacyMode);
+    onPrivacyModeChange?.(privacyMode);
 
     try {
       const res = await fetch(`${apiBase}/analyze`, {
@@ -89,7 +91,10 @@ export default function AnalyzeForm({
         throw new Error(message);
       }
 
-      const { job_id: jobId, status } = await res.json();
+      const { job_id: jobId, status, privacy_mode: privacyFromJob } = await res.json();
+      if (typeof privacyFromJob === "boolean") {
+        onPrivacyModeChange?.(privacyFromJob);
+      }
       onStatusChange?.(status);
 
       if (status === "complete") {

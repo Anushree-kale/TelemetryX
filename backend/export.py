@@ -54,13 +54,18 @@ def build_pdf(job: dict[str, Any], modules: list[dict[str, Any]], limit: int) ->
     pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "TelemetryX export", ln=True)
+    pdf.cell(0, 10, "TelemetryX export", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, f"Job {job['id']}  |  {job.get('repo_url', '')}", ln=True)
-    pdf.cell(0, 6, f"Modules: {len(rows)} (limit {limit})", ln=True)
+    pdf.cell(0, 6, f"Job {job['id']}  |  {job.get('repo_url', '')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, f"Modules: {len(rows)} (limit {limit})", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
     col_widths = [90, 18, 18, 18, 16, 16, 22, 18, 18, 18, 18, 22, 20, 16, 18, 14, 16]
+    usable_width = pdf.w - pdf.l_margin - pdf.r_margin
+    total = sum(col_widths)
+    if total > usable_width:
+        scale = usable_width / total
+        col_widths = [w * scale for w in col_widths]
     headers = [
         "File",
         "Debt",
@@ -95,4 +100,4 @@ def build_pdf(job: dict[str, Any], modules: list[dict[str, Any]], limit: int) ->
             pdf.cell(w, 5, val[:40], border=1)
         pdf.ln()
 
-    return pdf.output()
+    return bytes(pdf.output())

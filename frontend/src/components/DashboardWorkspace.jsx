@@ -47,12 +47,10 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
         setUiPhase("results");
         setSidebarExpanded(true);
         setCatPhase("on-sidebar");
-        const lastJobId = list[0].job_id;
-        if (lastJobId) {
-          fetch(`${apiBase}/results/${lastJobId}`)
-            .then(r => r.json())
-            .then(d => setPrivacyMode(d.privacy_mode || false))
-            .catch(() => {});
+        const jobIds = list.map((m) => m.job_id).filter(Boolean);
+        const latestJobId = jobIds.length ? Math.max(...jobIds) : null;
+        if (latestJobId) {
+          setCurrentJobId((prev) => prev ?? latestJobId);
         }
       }
     } catch {
@@ -69,6 +67,20 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     };
   }, [fetchAllModules]);
 
+  useEffect(() => {
+    if (!currentJobId) return;
+    let cancelled = false;
+    fetch(`${apiBase}/results/${currentJobId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setPrivacyMode(!!d.privacy_mode);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, currentJobId]);
+
   const startCatWalk = useCallback(() => {
     setCatPhase("walking");
     walkTimerRef.current = setTimeout(() => {
@@ -82,7 +94,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     setStatus(result.status);
     setRepoUrl(result.repo_url);
     setCurrentJobId(result.job_id ?? null);
-    setPrivacyMode(result.privacy_mode || false);
+    setPrivacyMode(!!result.privacy_mode);
     onReposChanged?.();
     setActivePanel("overview");
     setUiPhase("results");
@@ -91,10 +103,11 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     }
   };
 
-  const handleAnalyzeStart = () => {
+  const handleAnalyzeStart = (enabledPrivacy = false) => {
     setUiPhase("scanning");
     setCatPhase("on-card");
     setSidebarExpanded(false);
+    setPrivacyMode(!!enabledPrivacy);
   };
 
   const isAnalyzing = status === "pending" || status === "running";
@@ -161,23 +174,13 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
         {showResults && (
           <div className="results-panel">
-            <header className="panel-header" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1 }}>
-                <h2 style={{ margin: 0 }}>{PANEL_TITLES[activePanel]}</h2>
+            <header className="panel-header">
+              <div className="panel-header-title">
+                <h2>{PANEL_TITLES[activePanel]}</h2>
                 {privacyMode && (
-                  <span style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    background: "rgba(16, 185, 129, 0.15)",
-                    color: "#10b981",
-                    padding: "0.25rem 0.6rem",
-                    borderRadius: "9999px",
-                    fontSize: "0.75rem",
-                    fontWeight: "600",
-                    border: "1px solid rgba(16, 185, 129, 0.3)"
-                  }}>
-                    🛡️ Privacy active
+                  <span className="privacy-badge" title="Differential privacy (DP engine) is enabled for this analysis">
+                    <span className="privacy-badge-icon" aria-hidden>🛡️</span>
+                    Privacy active
                   </span>
                 )}
               </div>

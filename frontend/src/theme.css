@@ -467,10 +467,47 @@ body {
   max-width: 1100px;
 }
 
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
 .panel-header h2 {
   color: var(--text-on-dark);
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 1.15rem;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(110, 231, 183, 0.55);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.privacy-badge-icon {
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 /* Cards on dark stage */

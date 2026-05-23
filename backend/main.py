@@ -52,6 +52,7 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     job_id: int
     status: str
+    privacy_mode: bool = False
 
 
 class JobStatusResponse(BaseModel):
@@ -67,7 +68,11 @@ def analyze_repo_endpoint(body: AnalyzeRequest):
     repo_url = str(body.repo_url)
     job_id = database.create_job(repo_url, privacy_mode=body.privacy_mode)
     analyze_repo_task.delay(job_id, repo_url, privacy_mode=body.privacy_mode)
-    return AnalyzeResponse(job_id=job_id, status="pending")
+    return AnalyzeResponse(
+        job_id=job_id,
+        status="pending",
+        privacy_mode=body.privacy_mode,
+    )
 
 
 @app.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
