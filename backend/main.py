@@ -538,3 +538,51 @@ def compare_repositories(repo_a: str, repo_b: str):
             "metrics": summary_b
         }
     }
+
+
+@app.get("/jobs/{job_id}/privacy-comparison")
+def get_privacy_comparison(job_id: int):
+    job = database.get_job(job_id)
+    if not job or not job.get("privacy_mode"):
+        return {"comparisons": []}
+        
+    repo_url = job["repo_url"]
+    import redis_cache
+    cached = redis_cache.get_cached_analysis(repo_url)
+    if not cached:
+        return {"comparisons": []}
+        
+    raw_modules = cached.get("modules", [])
+    if not raw_modules:
+        return {"comparisons": []}
+        
+    perturbed_modules = database.get_job_modules(job_id)
+    if not perturbed_modules:
+        return {"comparisons": []}
+        
+    # Find a module that has meaningful differences or just take the first
+    p_mod = perturbed_modules[0]
+    file_path = p_mod["file_path"]
+    
+    r_mod = next((m for m in raw_modules if m.get("file_path") == file_path), None)
+    if not r_mod:
+        return {"comparisons": []}
+        
+    comparisons = [
+        {
+            "metric": "Cyclomatic Complexity",
+            "real": round(r_mod.get("cyclomatic_complexity", 0), 2),
+            "transmitted": round(p_mod.get("cyclomatic_complexity", 0), 2)
+        },
+        {
+            "metric": "Lines of Code",
+            "real": r_mod.get("lines_of_code"),
+            "transmitted": p_mod.get("lines_of_code")
+        },
+        {
+            "metric": "Days Since Last Commit",
+            "real": round(r_mod.get("days_since_last_commit", 0), 2),
+            "transmitted": round(p_mod.get("days_since_last_commit", 0), 2)
+        }
+    ]
+    return {"comparisons": comparisons}

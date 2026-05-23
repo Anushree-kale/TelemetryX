@@ -31,6 +31,7 @@ const CircularGauge = ({ percentage, color, label }) => {
 
 export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://localhost:8000", onNavigate }) {
   const [history, setHistory] = useState([]);
+  const [privacyComparison, setPrivacyComparison] = useState(null);
 
   useEffect(() => {
     if (!repoUrl) return;
@@ -39,6 +40,21 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
       .then((data) => {
         if (Array.isArray(data)) {
           setHistory(data);
+          const currentJob = data.length > 0 ? data[data.length - 1] : null;
+          if (currentJob && currentJob.privacy_mode) {
+             fetch(`${apiBase}/jobs/${currentJob.id}/privacy-comparison`)
+               .then(r => r.json())
+               .then(d => {
+                 if (d.comparisons && d.comparisons.length > 0) {
+                   setPrivacyComparison(d.comparisons);
+                 } else {
+                   setPrivacyComparison(null);
+                 }
+               })
+               .catch(() => setPrivacyComparison(null));
+          } else {
+             setPrivacyComparison(null);
+          }
         }
       })
       .catch((err) => console.error("Error loading historical jobs:", err));
@@ -181,6 +197,31 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
           </div>
         ))}
       </div>
+
+      {privacyComparison && (
+        <div style={{ marginTop: "2rem", padding: "1.5rem", borderRadius: "12px", background: "linear-gradient(145deg, #1e293b, #0f172a)", border: "1px solid #334155" }}>
+          <h3 style={{ margin: "0 0 1rem 0", color: "#e2e8f0", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>🛡️</span> Differential Privacy Anonymization
+          </h3>
+          <p style={{ fontSize: "0.9rem", color: "#94a3b8", marginBottom: "1.5rem" }}>
+            Synthetic noise was applied to these metrics to protect developer privacy while preserving cohort-level ML signals.
+          </p>
+          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+            {privacyComparison.map((comp, i) => (
+              <div key={i} style={{ flex: "1 1 200px", background: "#1e293b", padding: "1rem", borderRadius: "8px", border: "1px dashed #475569" }}>
+                <div style={{ fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                  {comp.metric}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div style={{ textDecoration: "line-through", color: "#ef4444", fontWeight: "600" }}>{comp.real}</div>
+                  <div style={{ color: "#8b9cb3" }}>→</div>
+                  <div style={{ color: "#10b981", fontWeight: "bold", fontSize: "1.1rem" }}>{comp.transmitted}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

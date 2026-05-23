@@ -15,5 +15,6 @@ shap==0.46.0
 numpy==2.2.0
 networkx==3.4.2
 fpdf2
+requests
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.2.0

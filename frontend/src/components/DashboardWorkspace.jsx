@@ -28,6 +28,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const [repoUrl, setRepoUrl] = useState(null);
   const [currentJobId, setCurrentJobId] = useState(null);
   const [modulesLoading, setModulesLoading] = useState(true);
+  const [privacyMode, setPrivacyMode] = useState(false);
 
   const [uiPhase, setUiPhase] = useState("landing");
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -46,6 +47,13 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
         setUiPhase("results");
         setSidebarExpanded(true);
         setCatPhase("on-sidebar");
+        const lastJobId = list[0].job_id;
+        if (lastJobId) {
+          fetch(`${apiBase}/results/${lastJobId}`)
+            .then(r => r.json())
+            .then(d => setPrivacyMode(d.privacy_mode || false))
+            .catch(() => {});
+        }
       }
     } catch {
       /* ignore */
@@ -74,6 +82,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
     setStatus(result.status);
     setRepoUrl(result.repo_url);
     setCurrentJobId(result.job_id ?? null);
+    setPrivacyMode(result.privacy_mode || false);
     onReposChanged?.();
     setActivePanel("overview");
     setUiPhase("results");
@@ -152,8 +161,26 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
         {showResults && (
           <div className="results-panel">
-            <header className="panel-header">
-              <h2>{PANEL_TITLES[activePanel]}</h2>
+            <header className="panel-header" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1 }}>
+                <h2 style={{ margin: 0 }}>{PANEL_TITLES[activePanel]}</h2>
+                {privacyMode && (
+                  <span style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    background: "rgba(16, 185, 129, 0.15)",
+                    color: "#10b981",
+                    padding: "0.25rem 0.6rem",
+                    borderRadius: "9999px",
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    border: "1px solid rgba(16, 185, 129, 0.3)"
+                  }}>
+                    🛡️ Privacy active
+                  </span>
+                )}
+              </div>
               <ExportButton jobId={jobId} apiBase={apiBase} />
             </header>
 

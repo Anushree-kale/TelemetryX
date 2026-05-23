@@ -123,6 +123,11 @@ def predict_failures_task(job_id: int) -> None:
     import logging
     try:
         failure_predictor.predict_failures(job_id)
+        
+        import database
+        import alerts
+        preds = database.get_job_failure_predictions(job_id)
+        alerts.send_failure_alert(job_id, preds)
     except Exception as exc:
         logging.getLogger(__name__).error(
             f"Failed to run failure predictor task for job {job_id}: {exc}",
