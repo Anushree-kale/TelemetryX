@@ -12,7 +12,7 @@ const NAV_GROUPS = [
     panels: ["fixes", "charts", "files"]
   },
   {
-    label: "GRAPH",
+    label: "STRUCTURE",
     panels: ["graph", "clusters", "cochange"]
   }
 ];
