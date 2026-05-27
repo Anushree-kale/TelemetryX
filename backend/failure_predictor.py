@@ -162,7 +162,7 @@ def train_failure_model(historical_data: dict[str, list[dict[str, Any]]]) -> int
     torch.save(GLOBAL_MODEL.state_dict(), MODEL_PATH)
     MODEL_TRAINED = True
     logger.info("Trained and saved failure model to %s", MODEL_PATH)
-    print(f"Trained failure model on {len(sequences)} sequences → {MODEL_PATH}")
+    print(f"Trained failure model on {len(sequences)} sequences -> {MODEL_PATH}")
     return len(sequences)
 
 
