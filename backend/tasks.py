@@ -122,6 +122,7 @@ def predict_failures_task(job_id: int) -> None:
     import failure_predictor
     import logging
     try:
+        failure_predictor.load_failure_model()
         failure_predictor.predict_failures(job_id)
         
         import database

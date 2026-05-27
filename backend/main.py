@@ -12,6 +12,7 @@ import database
 import export as job_export
 import post_analysis
 from debt_model import MODEL_PATH, get_scorer
+from failure_predictor import load_failure_model
 from graph_builder import graph_from_stored_json
 from tasks import analyze_repo_task
 
@@ -21,6 +22,7 @@ async def lifespan(_: FastAPI):
     database.init_schema()
     scorer = get_scorer()
     scorer.load()
+    load_failure_model()
     yield
 
 

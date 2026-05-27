@@ -832,6 +832,39 @@ def get_file_metric_history(file_path: str, current_job_id: int) -> list[dict[st
         return [dict(row) for row in cur.fetchall()]
 
 
+def get_historical_metric_sequences(min_steps: int = 3) -> dict[str, list[dict[str, Any]]]:
+    """Build per-file metric timelines from all completed jobs (for LSTM training)."""
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity,
+                   mm.days_since_last_commit, aj.created_at
+            FROM module_metrics mm
+            JOIN analysis_jobs aj ON mm.job_id = aj.id
+            WHERE aj.status = 'complete'
+            ORDER BY mm.file_path, aj.created_at ASC
+            """
+        )
+        rows = cur.fetchall()
+
+    sequences: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        path = row["file_path"]
+        sequences.setdefault(path, []).append(
+            {
+                "churn_90d": row["churn_90d"],
+                "cyclomatic_complexity": row["cyclomatic_complexity"],
+                "days_since_last_commit": row["days_since_last_commit"],
+            }
+        )
+
+    return {
+        path: history
+        for path, history in sequences.items()
+        if len(history) >= min_steps
+    }
+
+
 def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> dict[str, list[dict[str, Any]]]:
     if not file_paths:
         return {}
