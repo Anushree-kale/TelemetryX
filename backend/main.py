@@ -593,3 +593,50 @@ def get_privacy_comparison(job_id: int):
         }
     ]
     return {"comparisons": comparisons}
+
+
+@app.get("/jobs/{job_id}/synthetic-compliance")
+def get_synthetic_compliance(job_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    if job["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Job must be completed to run synthetic compliance checks")
+        
+    # 1. Fetch real modules
+    real_modules = database.get_job_modules(job_id)
+    if not real_modules:
+        return {
+            "status": "empty",
+            "message": "No modules found to generate synthetic compliance."
+        }
+        
+    # 2. Fit CTGAN (GMM) Synthesizer and sample synthetic replica
+    from privacy import gan_engine
+    ctgan = gan_engine.CTGANSynthesizer(n_components=3)
+    ctgan.fit(real_modules)
+    synthetic_tabular = ctgan.sample(len(real_modules))
+    
+    # 3. Fit TimeGAN Synthesizer on historical trend
+    history = database.get_repo_jobs_history(job["repo_url"])
+    timegan = gan_engine.TimeGANSynthesizer(epochs=100)
+    timegan.fit(history)
+    synthetic_time_series = timegan.sample(len(history))
+    
+    # 4. Perform Fidelity Validation Gate
+    validation_report = gan_engine.validate_fidelity(
+        real_data=real_modules,
+        synthetic_data=synthetic_tabular
+    )
+    
+    return {
+        "job_id": job_id,
+        "repo_url": job["repo_url"],
+        "privacy_mode": job.get("privacy_mode", False),
+        "validation_report": validation_report,
+        "real_history": history,
+        "synthetic_history": synthetic_time_series,
+        "metrics_sampled": len(synthetic_tabular)
+    }
+

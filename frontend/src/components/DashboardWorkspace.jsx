@@ -12,6 +12,7 @@ import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
 import OverviewScorecard from "./OverviewScorecard";
 import TeamHealthTab from "./TeamHealthTab";
+import PrivacyTab from "./PrivacyTab";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
@@ -258,6 +259,20 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   </SectionHint>
                 </div>
                 <TeamHealthTab jobId={jobId} apiBase={apiBase} />
+              </div>
+            )}
+
+            {activePanel === "privacy" && jobId && (
+              <div className="card">
+                <div className="card-heading-row">
+                  <h2>Privacy &amp; Synthesis Compliance</h2>
+                  <SectionHint label="Privacy &amp; Synthesis">
+                    <p>
+                      Calibrated differential privacy metrics, contributor PII stripping, and CTGAN / TimeGAN validation.
+                    </p>
+                  </SectionHint>
+                </div>
+                <PrivacyTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 

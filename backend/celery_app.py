@@ -1,8 +1,14 @@
 import os
+import sys
+from pathlib import Path
+
+# Add backend directory to path to prevent ModuleNotFoundError
+backend_dir = str(Path(__file__).resolve().parent)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from celery import Celery
 from dotenv import load_dotenv
-from pathlib import Path
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 

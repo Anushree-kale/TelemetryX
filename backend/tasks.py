@@ -1,11 +1,19 @@
 import shutil
+import sys
+from pathlib import Path
 from typing import Any
+
+# Ensure backend directory is in sys.path
+backend_dir = str(Path(__file__).resolve().parent)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 import analyzer
 import database
 import explain
 import post_analysis
 import redis_cache
+from privacy import dp_engine
 
 from celery_app import celery_app
 from debt_model import get_scorer
@@ -22,8 +30,15 @@ def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return scored
 
 
+def _ensure_backend_on_path() -> None:
+    app_dir = str(Path(__file__).resolve().parent)
+    if app_dir not in sys.path:
+        sys.path.insert(0, app_dir)
+
+
 @celery_app.task(bind=True, name="tasks.analyze_repo_task")
 def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = False) -> dict[str, Any]:
+    _ensure_backend_on_path()
     try:
         database.update_job_status(job_id, "running")
         database.update_job_progress(job_id, 5, "Starting analysis…")
@@ -35,7 +50,6 @@ def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = Fal
             co_pairs = cached.get("co_change_pairs", []) if isinstance(cached, dict) else []
             
             if privacy_mode:
-                from privacy import dp_engine
                 modules = dp_engine.perturb_metrics(modules)
                 
             enriched = _enrich_metrics(modules)
@@ -65,7 +79,6 @@ def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = Fal
 
             database.update_job_progress(job_id, 75, "Running models…")
             if privacy_mode:
-                from privacy import dp_engine
                 raw_metrics = dp_engine.perturb_metrics(raw_metrics)
                 
             enriched = _enrich_metrics(raw_metrics)
@@ -113,11 +126,7 @@ def _persist_results(
 
 @celery_app.task(name="tasks.predict_failures_task")
 def predict_failures_task(job_id: int) -> None:
-    import sys
-    import pathlib
-    app_dir = str(pathlib.Path(__file__).parent.resolve())
-    if app_dir not in sys.path:
-        sys.path.insert(0, app_dir)
+    _ensure_backend_on_path()
 
     import failure_predictor
     import logging
@@ -138,11 +147,7 @@ def predict_failures_task(job_id: int) -> None:
 
 @celery_app.task(name="tasks.predict_burnout_task")
 def predict_burnout_task(job_id: int) -> None:
-    import sys
-    import pathlib
-    app_dir = str(pathlib.Path(__file__).parent.resolve())
-    if app_dir not in sys.path:
-        sys.path.insert(0, app_dir)
+    _ensure_backend_on_path()
 
     import burnout_model
     import logging
