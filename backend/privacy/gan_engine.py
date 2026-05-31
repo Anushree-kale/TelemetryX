@@ -452,12 +452,12 @@ def validate_fidelity(
             js_distance = abs(real_std - synth_std) / real_std
             tvd_distance = abs(real_mean - synth_mean) / (real_mean + 1e-10)
 
-        metric_passed = (
-            ks_stat <= ks_threshold and 
-            js_distance <= js_threshold and 
-            tvd_distance <= tvd_threshold
+        metric_passed = bool(
+            float(ks_stat) <= ks_threshold
+            and js_distance <= js_threshold
+            and tvd_distance <= tvd_threshold
         )
-        
+
         if metric_passed:
             passed_count += 1
 
@@ -478,9 +478,9 @@ def validate_fidelity(
         )
 
     pass_rate = passed_count / tested_count if tested_count > 0 else 0.0
-    gate_passed = pass_rate >= pass_rate_threshold
+    gate_passed = bool(pass_rate >= pass_rate_threshold)
 
-    report["pass_rate"] = round(pass_rate, 4)
+    report["pass_rate"] = round(float(pass_rate), 4)
     report["passed"] = gate_passed
 
     logger.info(
