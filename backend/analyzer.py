@@ -222,7 +222,20 @@ def compute_churn_90d(repo: Repo, rel_path: str) -> int:
         return 0
 
 
-# Native Lizard Ast Parsed Languages (full complexity support)
+# Enterprise tier — first-class analysis (complexity + imports + test pairing)
+ENTERPRISE_LANGUAGE_EXTENSIONS: dict[str, frozenset[str]] = {
+    "javascript": frozenset({".js", ".jsx", ".mjs", ".cjs"}),
+    "typescript": frozenset({".ts", ".tsx"}),
+    "java": frozenset({".java"}),
+    "go": frozenset({".go"}),
+    "python": frozenset({".py"}),
+}
+
+ENTERPRISE_SOURCE_EXTENSIONS = frozenset(
+    ext for group in ENTERPRISE_LANGUAGE_EXTENSIONS.values() for ext in group
+)
+
+# Native Lizard AST languages (full cyclomatic / cognitive complexity)
 LIZARD_NATIVE_EXTENSIONS = {
     ".py",
     ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
@@ -428,9 +441,26 @@ def should_ignore_path(path: Path) -> bool:
     return False
 
 
-def analyze_python_files(
+def detect_language(rel_path: str) -> str:
+    """Map a repo-relative path to a language id (enterprise + extended set)."""
+    ext = Path(rel_path).suffix.lower()
+    for lang, extensions in ENTERPRISE_LANGUAGE_EXTENSIONS.items():
+        if ext in extensions:
+            return lang
+    if ext in LIZARD_NATIVE_EXTENSIONS:
+        return ext.lstrip(".") or "unknown"
+    if ext in SUPPORTED_EXTENSIONS:
+        return ext.lstrip(".") or "unknown"
+    return "unknown"
+
+
+def analyze_source_files(
     repo_path: str, git_repo: Repo | None = None
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Analyze source files across Python, JavaScript/TypeScript, Java, Go, and more.
+    Uses Lizard for cyclomatic complexity on supported languages; git signals are language-agnostic.
+    """
     root = Path(repo_path)
     all_files = []
     for ext in SUPPORTED_EXTENSIONS:
@@ -518,6 +548,7 @@ def analyze_python_files(
         results.append(
             {
                 "file_path": rel_path,
+                "language": detect_language(rel_path),
                 "cyclomatic_complexity": round(cyclomatic, 2),
                 "cognitive_complexity": lizard_metrics["cognitive_complexity"],
                 "lines_of_code": lizard_metrics["lines_of_code"],
@@ -539,10 +570,25 @@ def analyze_python_files(
     return results, co_change_pairs
 
 
+# Backward-compatible alias
+analyze_python_files = analyze_source_files
+
+
 def analyze_repo(repo_url: str) -> list[dict[str, Any]]:
     repo_path, git_repo = clone_repo(repo_url)
     try:
-        modules, _ = analyze_python_files(repo_path, git_repo)
+        modules, _ = analyze_source_files(repo_path, git_repo)
         return modules
     finally:
         shutil.rmtree(repo_path, ignore_errors=True)
+
+
+def supported_languages_summary() -> dict[str, Any]:
+    """API-facing summary of analyzer language coverage."""
+    return {
+        "enterprise": {
+            lang: sorted(exts) for lang, exts in ENTERPRISE_LANGUAGE_EXTENSIONS.items()
+        },
+        "extended_count": len(SUPPORTED_EXTENSIONS),
+        "complexity_via_lizard": sorted(LIZARD_NATIVE_EXTENSIONS),
+    }

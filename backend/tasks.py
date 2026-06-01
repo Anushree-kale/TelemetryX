@@ -67,7 +67,7 @@ def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = Fal
 
         try:
             database.update_job_progress(job_id, 25, "Computing churn & scanning files…")
-            raw_metrics, co_change_pairs = analyzer.analyze_python_files(
+            raw_metrics, co_change_pairs = analyzer.analyze_source_files(
                 repo_path, git_repo
             )
 

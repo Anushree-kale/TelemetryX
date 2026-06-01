@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from privacy import dp_engine
-from privacy import gan_engine
+from privacy import gan_engine, synthesis_engine
 
 class TestPrivacyCompliance(unittest.TestCase):
     def test_pii_stripping_and_anonymization(self):
@@ -44,6 +44,28 @@ class TestPrivacyCompliance(unittest.TestCase):
         self.assertNotEqual(perturbed[1]["unique_author_count"], 0)
         self.assertNotEqual(perturbed[1]["top_author_pct"], 0.0)
 
+    def test_tabular_gmm_synthesizer(self):
+        data = [
+            {
+                "lines_of_code": 100,
+                "cyclomatic_complexity": 2.5,
+                "churn_90d": 4,
+                "debt_score": 15.0,
+                "bug_fix_ratio": 0.2,
+            }
+            for _ in range(20)
+        ]
+
+        synth = synthesis_engine.TabularGMMSynthesizer(n_components=2, row_id_column="id")
+        synth.fit(data)
+        self.assertTrue(synth.is_fitted)
+
+        samples = synth.sample(5)
+        self.assertEqual(len(samples), 5)
+        for row in samples:
+            self.assertIn("id", row)
+            self.assertIn("lines_of_code", row)
+
     def test_ctgan_tabular_synthesizer(self):
         data = [
             {
@@ -71,6 +93,27 @@ class TestPrivacyCompliance(unittest.TestCase):
             # Verify data bounds and types
             self.assertIsInstance(s["lines_of_code"], int)
             self.assertIsInstance(s["cyclomatic_complexity"], float)
+
+    def test_time_series_lstm_synthesizer(self):
+        history = [
+            {
+                "avg_debt_score": 10.0 + i,
+                "total_loc": 1000 + i * 100,
+                "high_risk_count": i // 3,
+                "avg_test_coverage": 0.4 + i * 0.01,
+                "file_count": 10 + i,
+                "avg_failure_risk": 0.2 + i * 0.02,
+                "burnout_score": 0.15 + i * 0.01,
+                "high_risk_roi": 5.0 + i,
+            }
+            for i in range(10)
+        ]
+
+        synth = synthesis_engine.TimeSeriesLSTMSynthesizer(epochs=10)
+        synth.fit(history)
+        self.assertTrue(synth.is_fitted)
+        sampled = synth.sample(5)
+        self.assertEqual(len(sampled), 5)
 
     def test_timegan_time_series_synthesizer(self):
         history = [

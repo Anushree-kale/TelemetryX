@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, HttpUrl
 
+import analyzer
 import database
 import export as job_export
 import post_analysis
@@ -194,6 +195,12 @@ def retrain_model(admin_key: str = Depends(get_admin_key)):
 @app.get("/jobs/history")
 def get_jobs_history(repo_url: str):
     return database.get_repo_jobs_history(repo_url)
+
+
+@app.get("/analyzer/languages")
+def get_analyzer_languages():
+    """Language coverage for repository analysis (enterprise: Python, JS/TS, Java, Go)."""
+    return analyzer.supported_languages_summary()
 
 
 @app.get("/jobs/{job_id}/co-changes")
@@ -612,31 +619,40 @@ def get_synthetic_compliance(job_id: int):
             "message": "No modules found to generate synthetic compliance."
         }
         
-    # 2. Fit CTGAN (GMM) Synthesizer and sample synthetic replica
-    from privacy import gan_engine
-    ctgan = gan_engine.CTGANSynthesizer(n_components=3)
-    ctgan.fit(real_modules)
-    synthetic_tabular = ctgan.sample(len(real_modules))
-    
-    # 3. Fit TimeGAN Synthesizer on historical trend
-    history = database.get_repo_jobs_history(job["repo_url"])
-    timegan = gan_engine.TimeGANSynthesizer(epochs=100)
-    timegan.fit(history)
-    synthetic_time_series = timegan.sample(len(history))
-    
-    # 4. Perform Fidelity Validation Gate
-    validation_report = gan_engine.validate_fidelity(
-        real_data=real_modules,
-        synthetic_data=synthetic_tabular
+    from privacy.synthesis_engine import (
+        DEFAULT_TABULAR_COLUMNS,
+        TabularGMMSynthesizer,
+        TimeSeriesLSTMSynthesizer,
+        validate_fidelity,
     )
-    
+
+    tabular = TabularGMMSynthesizer(
+        n_components=3,
+        numeric_columns=DEFAULT_TABULAR_COLUMNS,
+        row_id_column="file_path",
+    )
+    tabular.fit(real_modules)
+    synthetic_tabular = tabular.sample(len(real_modules))
+
+    history = database.get_repo_jobs_history(job["repo_url"])
+    sequence = TimeSeriesLSTMSynthesizer(epochs=100)
+    sequence.fit(history)
+    synthetic_time_series = sequence.sample(len(history))
+
+    validation_report = validate_fidelity(
+        real_data=real_modules,
+        synthetic_data=synthetic_tabular,
+        metrics=DEFAULT_TABULAR_COLUMNS,
+    )
+
     return {
         "job_id": job_id,
         "repo_url": job["repo_url"],
         "privacy_mode": job.get("privacy_mode", False),
+        "synthesis_methods": validation_report.get("methods"),
         "validation_report": validation_report,
         "real_history": history,
         "synthetic_history": synthetic_time_series,
-        "metrics_sampled": len(synthetic_tabular)
+        "metrics_sampled": len(synthetic_tabular),
     }
 

@@ -31,6 +31,7 @@ export const PANEL_TITLES = {
 
 export const COLUMN_LABELS = {
   file_path: "File & summary",
+  language: "Language",
   debt_score: "Debt score",
   risk_level: "Risk level",
   priority_score: "Priority",

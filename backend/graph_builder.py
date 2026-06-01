@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import networkx as nx
-
 from networkx.algorithms.community import greedy_modularity_communities
+
+from analyzer import _extract_imports_multi
 
 
 IGNORED_DIRS = {
@@ -159,6 +160,41 @@ def collect_python_import_edges(repo_path: str) -> list[tuple[str, str, int]]:
     return [(a, b, w) for (a, b), w in edges.items()]
 
 
+def collect_import_edges(
+    repo_path: str, file_paths: set[str]
+) -> list[tuple[str, str, int]]:
+    """
+    Resolve import/require edges for all analyzed source files (not Python-only).
+    Uses regex-based import extraction aligned with analyzer.py.
+    """
+    root = Path(repo_path)
+    stem_map: dict[str, list[str]] = {}
+    for fp in file_paths:
+        stem = Path(fp).stem.lower()
+        stem_map.setdefault(stem, []).append(fp)
+
+    edges: dict[tuple[str, str], int] = {}
+
+    for fp in file_paths:
+        path = root / fp
+        if not path.is_file():
+            continue
+        try:
+            source = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+
+        imports = _extract_imports_multi(path, source)
+        for token in imports:
+            token_key = token.split(".")[-1].lower() if "." in token else token.lower()
+            for target in stem_map.get(token_key, []):
+                if target != fp:
+                    key = (fp, target)
+                    edges[key] = edges.get(key, 0) + 1
+
+    return [(a, b, w) for (a, b), w in edges.items()]
+
+
 def build_dependency_graph(
     modules: list[dict[str, Any]],
     co_change_pairs: list[dict[str, Any]],
@@ -176,12 +212,18 @@ def build_dependency_graph(
         G.add_node(fp)
 
     if repo_path:
-        for src, tgt, weight in collect_python_import_edges(repo_path):
+        edge_weights: dict[tuple[str, str], int] = {}
+        for src, tgt, weight in collect_python_import_edges(repo_path) + collect_import_edges(
+            repo_path, file_paths
+        ):
             if src in file_paths and tgt in file_paths:
-                if G.has_edge(src, tgt):
-                    G[src][tgt]["weight"] += weight
-                else:
-                    G.add_edge(src, tgt, type="import", weight=weight)
+                key = (src, tgt)
+                edge_weights[key] = edge_weights.get(key, 0) + weight
+        for src, tgt, weight in edge_weights.items():
+            if G.has_edge(src, tgt):
+                G[src][tgt]["weight"] += weight
+            else:
+                G.add_edge(src, tgt, type="import", weight=weight)
     else:
         stem_map: dict[str, str] = {}
         for fp in file_paths:

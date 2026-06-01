@@ -144,6 +144,7 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS cluster_id INTEGER DEFAULT 0
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS downstream_count INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT FALSE;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'unknown';
 ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS privacy_mode BOOLEAN DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS failure_predictions (
@@ -270,13 +271,13 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
             cur.execute(
                 """
                 INSERT INTO module_metrics (
-                    job_id, file_path, cyclomatic_complexity, cognitive_complexity,
+                    job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
                     lines_of_code, function_count, churn_90d, test_coverage_ratio,
                     max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
                     commit_timestamps, unique_author_count, top_author_pct,
                     bug_fix_ratio, days_since_last_commit, co_changes
                 ) VALUES (
-                    %(job_id)s, %(file_path)s, %(cyclomatic_complexity)s,
+                    %(job_id)s, %(file_path)s, %(language)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
                     %(churn_90d)s, %(test_coverage_ratio)s, %(max_fn_complexity)s,
                     %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s,
@@ -287,6 +288,7 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                 {
                     **m,
                     "job_id": job_id,
+                    "language": m.get("language", "unknown"),
                     "imports": m.get("imports", ""),
                     "commit_timestamps": json.dumps(m.get("commit_timestamps", [])),
                     "unique_author_count": int(m.get("unique_author_count", 0)),
@@ -414,7 +416,7 @@ def _module_shap_summaries(module_ids: list[int]) -> dict[int, str]:
 
 
 _MODULE_COLUMNS = """
-    id, job_id, file_path, cyclomatic_complexity, cognitive_complexity,
+    id, job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
     lines_of_code, function_count, churn_90d, test_coverage_ratio,
     max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
     commit_timestamps, unique_author_count, top_author_pct, bug_fix_ratio,
@@ -664,7 +666,7 @@ def get_all_modules() -> list[dict[str, Any]]:
         cur.execute(
             """
             SELECT
-                m.id, m.file_path, m.cyclomatic_complexity, m.cognitive_complexity,
+                m.id, m.file_path, m.language, m.cyclomatic_complexity, m.cognitive_complexity,
                 m.lines_of_code, m.function_count, m.churn_90d,
                 m.test_coverage_ratio, m.max_fn_complexity, m.fan_out,
                 m.debt_score, m.roi_days, m.risk_level, m.imports,

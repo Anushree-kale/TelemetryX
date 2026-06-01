@@ -66,5 +66,16 @@ services:
       redis:
         condition: service_healthy
 
+  synthesis:
+    build:
+      context: .
+      dockerfile: synthesis_service/Dockerfile
+    container_name: telemetryx-synthesis
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend/privacy:/app/backend/privacy
+      - ./synthesis_service/app.py:/app/app.py
+
 volumes:
   postgres_data:

@@ -284,7 +284,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   <h2>Privacy &amp; Synthesis Compliance</h2>
                   <SectionHint label="Privacy &amp; Synthesis">
                     <p>
-                      Calibrated differential privacy metrics, contributor PII stripping, and CTGAN / TimeGAN validation.
+                      Calibrated differential privacy metrics, contributor PII stripping, and GMM / LSTM synthesis validation.
                     </p>
                   </SectionHint>
                 </div>

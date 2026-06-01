@@ -210,10 +210,10 @@ export default function PrivacyTab({ jobId, apiBase = "http://localhost:8000" })
       {/* ── TIMEGAN SYNTHESIS HISTORY PLOT ── */}
       <div className="card" style={{ padding: "1.5rem" }}>
         <h3 style={{ color: "#f8fafc", margin: "0 0 0.5rem 0", fontSize: "1.1rem" }}>
-          TimeGAN Time-Series Synthesis (Real vs Synthetic Cohort Trend)
+          Time-Series LSTM Synthesis (Real vs Synthetic Cohort Trend)
         </h3>
         <p style={{ color: "#64748b", margin: "0 0 1.5rem 0", fontSize: "0.8rem" }}>
-          Demonstrates how the TimeGAN LSTM network recreates historical trajectory dynamics for lines of code (LOC).
+          LSTM next-step regression (not TimeGAN) recreates historical trajectory dynamics for lines of code (LOC).
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -222,7 +222,7 @@ export default function PrivacyTab({ jobId, apiBase = "http://localhost:8000" })
               <span style={{ width: "12px", height: "4px", background: "#3b82f6", borderRadius: "2px" }} /> Real historical trend
             </span>
             <span style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "12px", height: "4px", background: "#10b981", borderRadius: "2px", border: "1px dashed #10b981" }} /> TimeGAN Synthetic replica
+              <span style={{ width: "12px", height: "4px", background: "#10b981", borderRadius: "2px", border: "1px dashed #10b981" }} /> LSTM synthetic replica
             </span>
           </div>
 
@@ -266,7 +266,7 @@ export default function PrivacyTab({ jobId, apiBase = "http://localhost:8000" })
                             marginTop: "-4px",
                             transition: "height 0.5s ease-in-out"
                           }} 
-                          title={`TimeGAN Synthetic LOC: ${synth.total_loc}`}
+                          title={`Synthetic LOC: ${synth.total_loc}`}
                         />
                       )}
                       <span style={{ fontSize: "0.6rem", color: "#64748b", marginTop: "0.25rem", position: "absolute", bottom: "-20px" }}>
