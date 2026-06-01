@@ -29,7 +29,13 @@ const CircularGauge = ({ percentage, color, label }) => {
   );
 };
 
-export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://localhost:8000", onNavigate }) {
+export default function OverviewScorecard({
+  modules,
+  repoUrl,
+  jobId,
+  apiBase = "http://localhost:8000",
+  onNavigate,
+}) {
   const [history, setHistory] = useState([]);
   const [privacyComparison, setPrivacyComparison] = useState(null);
 
@@ -62,18 +68,29 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
 
   if (!modules.length) return null;
 
-  // Current values
   const withScore = modules.filter((m) => m.debt_score != null);
-  const avgDebt = withScore.length > 0
-      ? withScore.reduce((s, m) => s + m.debt_score, 0) / withScore.length
+  const avgDebt =
+    withScore.length > 0
+      ? withScore.reduce((s, m) => s + Number(m.debt_score), 0) / withScore.length
       : 0;
 
   const highDebtRoi = modules
     .filter((m) => m.risk_level === "high")
     .reduce((s, m) => s + (m.roi_days ?? 0), 0);
-    
-  const currentJob = history.length > 0 ? history[history.length - 1] : null;
-  const previousJob = history.length > 1 ? history[history.length - 2] : null;
+
+  const historyIndex = jobId ? history.findIndex((h) => h.id === jobId) : -1;
+  const currentJob =
+    historyIndex >= 0
+      ? history[historyIndex]
+      : history.length > 0
+        ? history[history.length - 1]
+        : null;
+  const previousJob =
+    historyIndex > 0
+      ? history[historyIndex - 1]
+      : history.length > 1
+        ? history[history.length - 2]
+        : null;
 
   const failureRisk = currentJob?.avg_failure_risk || 0;
   const prevFailureRisk = previousJob?.avg_failure_risk || 0;
@@ -112,14 +129,16 @@ export default function OverviewScorecard({ modules, repoUrl, apiBase = "http://
       trend: renderTrendArrow(failureRisk, prevFailureRisk, true)
     },
     {
-      id: "heatmap",
+      id: "files",
       title: "Debt Score",
-      hint: "Average module-level technical debt.",
+      hint: withScore.length
+        ? "Average module-level technical debt (XGBoost model)."
+        : "Debt scores not available — ensure analysis completed and Celery worker ran.",
       value: avgDebt,
       percentage: avgDebt / 100,
-      label: avgDebt.toFixed(0),
-      color: getDebtColor(avgDebt),
-      trend: renderTrendArrow(avgDebt, prevAvgDebt, true)
+      label: withScore.length ? avgDebt.toFixed(0) : "—",
+      color: withScore.length ? getDebtColor(avgDebt) : "#64748b",
+      trend: withScore.length ? renderTrendArrow(avgDebt, prevAvgDebt, true) : null,
     },
     {
       id: "teamhealth",

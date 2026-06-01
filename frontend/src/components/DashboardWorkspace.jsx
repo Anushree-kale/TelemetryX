@@ -11,6 +11,8 @@ import HistoryTrends from "./HistoryTrends";
 import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
 import OverviewScorecard from "./OverviewScorecard";
+import DebtHeatmap from "./DebtHeatmap";
+import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import TeamHealthTab from "./TeamHealthTab";
 import PrivacyTab from "./PrivacyTab";
 import SectionHint from "./SectionHint";
@@ -36,51 +38,50 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const [catPhase, setCatPhase] = useState("on-card");
   const walkTimerRef = useRef(null);
 
-  const fetchAllModules = useCallback(async () => {
-    setModulesLoading(true);
-    try {
-      const res = await fetch(`${apiBase}/modules`);
-      if (!res.ok) return;
+  const loadJobResults = useCallback(
+    async (jobId) => {
+      if (!jobId) return false;
+      const res = await fetch(`${apiBase}/results/${jobId}`);
+      if (!res.ok) return false;
       const data = await res.json();
       const list = data.modules || [];
       setModules(list);
+      setRepoUrl(data.repo_url ?? null);
+      setPrivacyMode(!!data.privacy_mode);
+      setStatus(data.status ?? null);
       if (list.length > 0) {
         setUiPhase("results");
         setSidebarExpanded(true);
         setCatPhase("on-sidebar");
-        const jobIds = list.map((m) => m.job_id).filter(Boolean);
-        const latestJobId = jobIds.length ? Math.max(...jobIds) : null;
-        if (latestJobId) {
-          setCurrentJobId((prev) => prev ?? latestJobId);
-        }
       }
+      return true;
+    },
+    [apiBase],
+  );
+
+  const fetchLatestJob = useCallback(async () => {
+    setModulesLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/modules`);
+      if (!res.ok) return;
+      const list = (await res.json()).modules || [];
+      if (!list.length) return;
+      const latestJobId = Math.max(...list.map((m) => m.job_id).filter(Boolean));
+      setCurrentJobId(latestJobId);
+      await loadJobResults(latestJobId);
     } catch {
       /* ignore */
     } finally {
       setModulesLoading(false);
     }
-  }, [apiBase]);
+  }, [apiBase, loadJobResults]);
 
   useEffect(() => {
-    fetchAllModules();
+    fetchLatestJob();
     return () => {
       if (walkTimerRef.current) clearTimeout(walkTimerRef.current);
     };
-  }, [fetchAllModules]);
-
-  useEffect(() => {
-    if (!currentJobId) return;
-    let cancelled = false;
-    fetch(`${apiBase}/results/${currentJobId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d) setPrivacyMode(!!d.privacy_mode);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [apiBase, currentJobId]);
+  }, [fetchLatestJob]);
 
   const startCatWalk = useCallback(() => {
     setCatPhase("walking");
@@ -190,12 +191,27 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
 
             {activePanel === "overview" && (
               <>
-                <OverviewScorecard 
-                  modules={modules} 
-                  repoUrl={activeRepoUrl} 
-                  apiBase={apiBase} 
-                  onNavigate={setActivePanel} 
+                <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
+                <OverviewScorecard
+                  modules={modules}
+                  repoUrl={activeRepoUrl}
+                  jobId={jobId}
+                  apiBase={apiBase}
+                  onNavigate={setActivePanel}
                 />
+                <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />
+                <div className="card">
+                  <div className="card-heading-row">
+                    <h2>Debt heatmap</h2>
+                    <SectionHint label="Heatmap">
+                      <p>
+                        File-level debt scores from the XGBoost debt model. Darker cells indicate
+                        higher predicted rework risk.
+                      </p>
+                    </SectionHint>
+                  </div>
+                  <DebtHeatmap modules={modules} />
+                </div>
               </>
             )}
 
