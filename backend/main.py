@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, HttpUrl
 
 import analyzer
+import config
 import database
 import export as job_export
 import post_analysis
@@ -20,6 +21,7 @@ from tasks import analyze_repo_task
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    config.require_admin_key_at_startup()
     database.init_schema()
     scorer = get_scorer()
     scorer.load()
@@ -152,6 +154,8 @@ def get_burnout_assessment(job_id: int):
     if not assessment:
         return {"status": "pending", "job_id": job_id}
 
+    import burnout_model
+
     return {
         "status": "complete",
         "job_id": job_id,
@@ -160,6 +164,7 @@ def get_burnout_assessment(job_id: int):
         "top_drivers": assessment["top_drivers"],
         "metrics": assessment["metrics"],
         "created_at": assessment["created_at"],
+        "model_info": burnout_model.get_model_provenance(),
     }
 
 
@@ -169,7 +174,7 @@ def list_modules():
 
 
 def get_admin_key(x_admin_key: str = Header(None)):
-    expected_key = os.getenv("ADMIN_KEY", "telemetryx_secret_admin_key")
+    expected_key = config.get_expected_admin_key()
     if not x_admin_key or x_admin_key != expected_key:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid X-Admin-Key")
     return x_admin_key
@@ -189,6 +194,18 @@ def retrain_model(admin_key: str = Depends(get_admin_key)):
         "status": "ok",
         "message": f"Model retrained on {len(rows)} modules",
         "model_path": str(scorer.model is not None),
+    }
+
+
+@app.post("/model/retrain-burnout")
+def retrain_burnout_model(admin_key: str = Depends(get_admin_key)):
+    import burnout_model
+
+    _, provenance = burnout_model.retrain_burnout_model()
+    return {
+        "status": "ok",
+        "message": "Burnout model retrained",
+        "model_info": provenance,
     }
 
 

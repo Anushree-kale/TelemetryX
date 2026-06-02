@@ -40,7 +40,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/telemetryx
       - REDIS_URL=redis://redis:6379/0
-      - ADMIN_KEY=${ADMIN_KEY}
+      # Local dev: omit ADMIN_KEY to use the dev fallback. Production: set TELEMETRYX_ENV=production and a strong ADMIN_KEY (API will not start without it).
+      - TELEMETRYX_ENV=${TELEMETRYX_ENV:-development}
+      - ADMIN_KEY=${ADMIN_KEY:-}
       - ANALYSIS_CACHE_TTL=3600
     depends_on:
       db:

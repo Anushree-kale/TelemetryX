@@ -30,7 +30,8 @@ app = FastAPI(
     version="1.0.0",
     description=(
         "Schema-agnostic synthetic tabular and time-series generation. "
-        "Uses GMM + LSTM — not CTGAN/TimeGAN adversarial models."
+        "Uses GMM + LSTM — not CTGAN/TimeGAN adversarial models. "
+        "Image / VAE synthesis is out of scope for this service."
     ),
 )
 

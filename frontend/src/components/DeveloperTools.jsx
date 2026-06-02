@@ -23,8 +23,7 @@ export default function DeveloperTools({ apiBase }) {
     loadStatus();
   }, [loadStatus]);
 
-  const retrain = async (e) => {
-    e.preventDefault();
+  const retrainEndpoint = async (path, successLabel) => {
     setRetrainMsg(null);
     if (!adminKey.trim()) {
       setRetrainMsg("Enter the admin key from your server configuration.");
@@ -32,7 +31,7 @@ export default function DeveloperTools({ apiBase }) {
     }
     setRetrainBusy(true);
     try {
-      const res = await fetch(`${apiBase}/model/retrain`, {
+      const res = await fetch(`${apiBase}${path}`, {
         method: "POST",
         headers: { "X-Admin-Key": adminKey.trim() },
       });
@@ -42,13 +41,29 @@ export default function DeveloperTools({ apiBase }) {
         const msg = Array.isArray(d) ? d.map((x) => x.msg).join(", ") : d || res.statusText;
         throw new Error(msg);
       }
-      setRetrainMsg(`✓ ${body.message || "Retrain complete."}`);
+      const extra =
+        body.model_info?.training_source === "labeled_validation"
+          ? " (burnout: labeled validation set)"
+          : body.model_info?.training_source === "synthetic"
+            ? " (burnout: synthetic fallback)"
+            : "";
+      setRetrainMsg(`✓ ${body.message || successLabel}${extra}`);
       loadStatus();
     } catch (err) {
       setRetrainMsg(`✗ ${err.message}`);
     } finally {
       setRetrainBusy(false);
     }
+  };
+
+  const retrain = (e) => {
+    e.preventDefault();
+    retrainEndpoint("/model/retrain", "Retrain complete.");
+  };
+
+  const retrainBurnout = (e) => {
+    e.preventDefault();
+    retrainEndpoint("/model/retrain-burnout", "Burnout retrain complete.");
   };
 
   const copy = () => {
@@ -190,14 +205,24 @@ export default function DeveloperTools({ apiBase }) {
                 autoComplete="off"
               />
             </label>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={retrainBusy || !canRetrain}
-              title={!canRetrain ? "Need at least 3 analysed modules before retraining" : ""}
-            >
-              {retrainBusy ? "Retraining…" : "Retrain model now"}
-            </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={retrainBusy || !canRetrain}
+                title={!canRetrain ? "Need at least 3 analysed modules before retraining" : ""}
+              >
+                {retrainBusy ? "Retraining…" : "Retrain debt model"}
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={retrainBusy}
+                onClick={retrainBurnout}
+              >
+                {retrainBusy ? "Retraining…" : "Retrain burnout model"}
+              </button>
+            </div>
           </form>
 
           {retrainMsg && (

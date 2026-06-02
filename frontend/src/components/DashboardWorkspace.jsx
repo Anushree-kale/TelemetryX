@@ -270,7 +270,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   <h2>Team health</h2>
                   <SectionHint label="Team health">
                     <p>
-                      Burnout Radar predicting risk levels using XGBoost.
+                      Burnout Radar (XGBoost) on git-derived cohort metrics. Default weights are synthetic-trained; optional labeled validation CSV improves credibility.
                     </p>
                   </SectionHint>
                 </div>
@@ -284,7 +284,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
                   <h2>Privacy &amp; Synthesis Compliance</h2>
                   <SectionHint label="Privacy &amp; Synthesis">
                     <p>
-                      Calibrated differential privacy metrics, contributor PII stripping, and GMM / LSTM synthesis validation.
+                      Calibrated differential privacy metrics, contributor PII stripping, and tabular GMM / time-series LSTM synthesis validation. Image VAE synthesis is not part of this release.
                     </p>
                   </SectionHint>
                 </div>

@@ -66,7 +66,7 @@ export default function TeamHealthTab({ jobId, apiBase }) {
     );
   }
 
-  const { risk_level, risk_score, top_drivers, metrics } = assessment;
+  const { risk_level, risk_score, top_drivers, metrics, model_info: modelInfo } = assessment;
 
   const getRiskColor = (level) => {
     switch (level?.toLowerCase()) {
@@ -87,6 +87,47 @@ export default function TeamHealthTab({ jobId, apiBase }) {
       <p className="card-hint" style={{ marginBottom: "1.5rem" }}>
         Burnout Radar predicts cohort-level burnout risk using an XGBoost classifier based on concentration risk, firefighting ratios, and activity pressure.
       </p>
+
+      {modelInfo && (
+        <div
+          className="card-hint"
+          style={{
+            marginBottom: "1.5rem",
+            padding: "0.75rem 1rem",
+            borderRadius: "6px",
+            border: "1px solid #2a3548",
+            background: "#121a28",
+            fontSize: "0.85rem",
+            lineHeight: 1.5,
+          }}
+        >
+          <strong style={{ color: "#e7ecf3" }}>Model provenance: </strong>
+          {modelInfo.training_source === "labeled_validation" ? (
+            <span>Trained on anonymized labeled cohort data.</span>
+          ) : (
+            <span>Trained on synthetic cohort data (heuristic labels).</span>
+          )}
+          {modelInfo.validation_metrics ? (
+            <span>
+              {" "}
+              Hold-out validation ({modelInfo.validation_metrics.n_samples} rows): accuracy{" "}
+              {(modelInfo.validation_metrics.accuracy * 100).toFixed(1)}%
+              {modelInfo.validation_metrics.roc_auc != null && (
+                <>
+                  , ROC-AUC {(modelInfo.validation_metrics.roc_auc * 100).toFixed(1)}%
+                </>
+              )}
+              .
+            </span>
+          ) : (
+            <span>
+              {" "}
+              Add ≥5 anonymized labeled rows to <code>backend/data/burnout_validation.csv</code> for
+              hold-out metrics; ≥30 rows enables retraining on real labels.
+            </span>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "2rem" }}>
         {/* Risk Gauge */}
