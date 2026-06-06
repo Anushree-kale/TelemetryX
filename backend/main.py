@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, HttpUrl
 
 import analyzer
+import auth
 import config
 import database
 import export as job_export
@@ -23,6 +24,7 @@ from tasks import analyze_repo_task
 async def lifespan(_: FastAPI):
     config.require_admin_key_at_startup()
     database.init_schema()
+    config.require_api_keys_at_startup()
     scorer = get_scorer()
     scorer.load()
     load_failure_model()
@@ -47,6 +49,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(auth.ApiKeyMiddleware)
 
 
 class AnalyzeRequest(BaseModel):
@@ -66,6 +69,17 @@ class JobStatusResponse(BaseModel):
     progress_pct: int
     progress_message: str
     error_detail: str | None = None
+
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str
+    team: str = "default"
+    rate_limit_per_hour: int = 100
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "telemetryx-api", "auth_required": not auth.auth_disabled()}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -207,6 +221,36 @@ def retrain_burnout_model(admin_key: str = Depends(get_admin_key)):
         "message": "Burnout model retrained",
         "model_info": provenance,
     }
+
+
+@app.post("/admin/api-keys")
+def create_api_key(body: ApiKeyCreateRequest, admin_key: str = Depends(get_admin_key)):
+    plaintext = auth.generate_api_key()
+    record = database.create_api_key_record(
+        name=body.name.strip(),
+        team=body.team.strip() or "default",
+        key_hash=auth.hash_api_key(plaintext),
+        key_prefix=auth.key_prefix(plaintext),
+        rate_limit_per_hour=max(1, body.rate_limit_per_hour),
+    )
+    return {
+        "status": "ok",
+        "api_key": plaintext,
+        "message": "Store this key securely — it will not be shown again.",
+        "record": record,
+    }
+
+
+@app.get("/admin/api-keys")
+def list_api_keys(admin_key: str = Depends(get_admin_key)):
+    return {"keys": database.list_api_keys()}
+
+
+@app.delete("/admin/api-keys/{key_id}")
+def revoke_api_key(key_id: int, admin_key: str = Depends(get_admin_key)):
+    if not database.revoke_api_key(key_id):
+        raise HTTPException(status_code=404, detail="API key not found or already revoked")
+    return {"status": "ok", "revoked_id": key_id}
 
 
 @app.get("/jobs/history")

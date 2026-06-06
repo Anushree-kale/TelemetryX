@@ -3,6 +3,7 @@ import CompareWorkspace from "./components/CompareWorkspace";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
 import { APP_TAGLINE } from "./labels";
+import { apiFetch } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -11,7 +12,7 @@ export default function App() {
   const [repoList, setRepoList] = useState([]);
 
   const refreshRepoList = useCallback(() => {
-    fetch(`${API_BASE}/repos`)
+    apiFetch(API_BASE, "/repos")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setRepoList(data);

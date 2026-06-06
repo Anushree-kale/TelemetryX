@@ -117,6 +117,17 @@ CREATE TABLE IF NOT EXISTS burnout_assessments (
     metrics JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    team TEXT NOT NULL DEFAULT 'default',
+    key_hash TEXT NOT NULL UNIQUE,
+    key_prefix TEXT NOT NULL,
+    rate_limit_per_hour INTEGER DEFAULT 100,
+    created_at TIMESTAMP DEFAULT NOW(),
+    revoked_at TIMESTAMP
+);
 """
 
 MIGRATION_SQL = """
@@ -165,6 +176,17 @@ CREATE TABLE IF NOT EXISTS burnout_assessments (
     top_drivers JSONB NOT NULL,
     metrics JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    team TEXT NOT NULL DEFAULT 'default',
+    key_hash TEXT NOT NULL UNIQUE,
+    key_prefix TEXT NOT NULL,
+    rate_limit_per_hour INTEGER DEFAULT 100,
+    created_at TIMESTAMP DEFAULT NOW(),
+    revoked_at TIMESTAMP
 );
 """
 
@@ -998,5 +1020,78 @@ def get_burnout_assessment(job_id: int) -> dict[str, Any] | None:
         return res
 
 
+def create_api_key_record(
+    *,
+    name: str,
+    team: str,
+    key_hash: str,
+    key_prefix: str,
+    rate_limit_per_hour: int,
+) -> dict[str, Any]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO api_keys (name, team, key_hash, key_prefix, rate_limit_per_hour)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, name, team, key_prefix, rate_limit_per_hour, created_at
+            """,
+            (name, team, key_hash, key_prefix, rate_limit_per_hour),
+        )
+        row = dict(cur.fetchone())
+        if row["created_at"]:
+            row["created_at"] = row["created_at"].isoformat()
+        return row
+
+
+def list_api_keys() -> list[dict[str, Any]]:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, name, team, key_prefix, rate_limit_per_hour, created_at, revoked_at
+            FROM api_keys
+            ORDER BY created_at DESC
+            """
+        )
+        rows = []
+        for row in cur.fetchall():
+            item = dict(row)
+            if item["created_at"]:
+                item["created_at"] = item["created_at"].isoformat()
+            if item["revoked_at"]:
+                item["revoked_at"] = item["revoked_at"].isoformat()
+            rows.append(item)
+        return rows
+
+
+def get_active_api_key_by_hash(key_hash: str) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, name, team, key_hash, key_prefix, rate_limit_per_hour, created_at
+            FROM api_keys
+            WHERE key_hash = %s AND revoked_at IS NULL
+            """,
+            (key_hash,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        if item["created_at"]:
+            item["created_at"] = item["created_at"].isoformat()
+        return item
+
+
+def revoke_api_key(key_id: int) -> bool:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            UPDATE api_keys
+            SET revoked_at = NOW()
+            WHERE id = %s AND revoked_at IS NULL
+            """,
+            (key_id,),
+        )
+        return cur.rowcount > 0
 
 

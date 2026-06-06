@@ -27,6 +27,34 @@ services:
       timeout: 5s
       retries: 5
 
+  synthesis:
+    build:
+      context: .
+      dockerfile: synthesis_service/Dockerfile
+    container_name: telemetryx-synthesis
+    ports:
+      - "8001:8001"
+    environment:
+      - TELEMETRYX_ENV=${TELEMETRYX_ENV:-development}
+      - SYNTHESIS_API_KEY=${SYNTHESIS_API_KEY:-}
+      - AUTH_DISABLED=${SYNTHESIS_AUTH_DISABLED:-true}
+    volumes:
+      - ./backend/privacy:/app/backend/privacy
+      - ./synthesis_service/app.py:/app/app.py
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   api:
     build:
       context: ./backend
@@ -40,14 +68,19 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/telemetryx
       - REDIS_URL=redis://redis:6379/0
+      - SYNTHESIS_SERVICE_URL=http://synthesis:8001
       # Local dev: omit ADMIN_KEY to use the dev fallback. Production: set TELEMETRYX_ENV=production and a strong ADMIN_KEY (API will not start without it).
       - TELEMETRYX_ENV=${TELEMETRYX_ENV:-development}
       - ADMIN_KEY=${ADMIN_KEY:-}
+      - AUTH_DISABLED=${AUTH_DISABLED:-true}
+      - TELEMETRYX_API_KEYS=${TELEMETRYX_API_KEYS:-}
       - ANALYSIS_CACHE_TTL=3600
     depends_on:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      synthesis:
         condition: service_healthy
 
   worker:
@@ -61,23 +94,13 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/telemetryx
       - REDIS_URL=redis://redis:6379/0
+      - SYNTHESIS_SERVICE_URL=http://synthesis:8001
       - ANALYSIS_CACHE_TTL=3600
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-  synthesis:
-    build:
-      context: .
-      dockerfile: synthesis_service/Dockerfile
-    container_name: telemetryx-synthesis
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./backend/privacy:/app/backend/privacy
-      - ./synthesis_service/app.py:/app/app.py
 
 volumes:
   postgres_data:

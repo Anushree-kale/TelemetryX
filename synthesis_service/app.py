@@ -10,9 +10,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 # Shared engine lives in backend/privacy
 _BACKEND = Path(__file__).resolve().parent.parent / "backend"
@@ -24,6 +27,34 @@ from privacy.synthesis_engine import (  # noqa: E402
     TimeSeriesLSTMSynthesizer,
     validate_fidelity,
 )
+
+import os
+
+
+def _synthesis_auth_disabled() -> bool:
+    if os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes"):
+        return True
+    env = os.getenv("TELEMETRYX_ENV", os.getenv("ENV", "development")).lower()
+    if env in ("production", "prod"):
+        return False
+    return not bool(os.getenv("SYNTHESIS_API_KEY", "").strip())
+
+
+class SynthesisAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        if _synthesis_auth_disabled():
+            return await call_next(request)
+
+        path = request.url.path.rstrip("/") or "/"
+        if path in ("/health", "/docs", "/openapi.json", "/redoc"):
+            return await call_next(request)
+
+        expected = os.getenv("SYNTHESIS_API_KEY", "").strip()
+        provided = request.headers.get("X-API-Key", "").strip()
+        if not expected or provided != expected:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing X-API-Key"})
+        return await call_next(request)
+
 
 app = FastAPI(
     title="TelemetryX Synthesis Service",
@@ -42,6 +73,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SynthesisAuthMiddleware)
 
 
 class TabularGenerateRequest(BaseModel):
@@ -72,7 +104,11 @@ class ValidateRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "telemetryx-synthesis"}
+    return {
+        "status": "ok",
+        "service": "telemetryx-synthesis",
+        "auth_required": not _synthesis_auth_disabled(),
+    }
 
 
 @app.get("/v1/methods")

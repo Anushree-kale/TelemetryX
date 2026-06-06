@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import ProgressBar from "./ProgressBar";
+import { apiFetch } from "../api";
 
 const POLL_INTERVAL_MS = 1500;
 
@@ -30,7 +31,7 @@ export default function AnalyzeForm({
     new Promise((resolve, reject) => {
       const tick = async () => {
         try {
-          const res = await fetch(`${apiBase}/jobs/${jobId}/status`);
+          const res = await apiFetch(apiBase, `/jobs/${jobId}/status`);
           if (!res.ok) throw new Error("Failed to fetch job status");
           const data = await res.json();
           onStatusChange?.(data.status);
@@ -41,7 +42,7 @@ export default function AnalyzeForm({
 
           if (data.status === "complete") {
             stopPolling();
-            const resultsRes = await fetch(`${apiBase}/results/${jobId}`);
+            const resultsRes = await apiFetch(apiBase, `/results/${jobId}`);
             if (!resultsRes.ok) throw new Error("Failed to fetch job results");
             resolve(await resultsRes.json());
           } else if (data.status === "failed") {
@@ -76,7 +77,7 @@ export default function AnalyzeForm({
     onPrivacyModeChange?.(privacyMode);
 
     try {
-      const res = await fetch(`${apiBase}/analyze`, {
+      const res = await apiFetch(apiBase, "/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_url: url, privacy_mode: privacyMode }),
@@ -98,7 +99,7 @@ export default function AnalyzeForm({
       onStatusChange?.(status);
 
       if (status === "complete") {
-        const resultsRes = await fetch(`${apiBase}/results/${jobId}`);
+        const resultsRes = await apiFetch(apiBase, `/results/${jobId}`);
         onComplete?.(await resultsRes.json());
       } else {
         onComplete?.(await pollJobStatus(jobId));

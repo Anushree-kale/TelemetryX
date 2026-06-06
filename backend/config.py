@@ -27,3 +27,23 @@ def get_expected_admin_key() -> str:
     if is_production():
         raise RuntimeError("ADMIN_KEY is required in production")
     return _DEV_ADMIN_FALLBACK
+
+
+def require_api_keys_at_startup() -> None:
+    if not is_production():
+        return
+    if os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes"):
+        raise RuntimeError(
+            "AUTH_DISABLED must not be set in production. Configure TELEMETRYX_API_KEYS "
+            "or create keys via POST /admin/api-keys."
+        )
+    if os.getenv("TELEMETRYX_API_KEYS", "").strip():
+        return
+    import database
+
+    active = [k for k in database.list_api_keys() if not k.get("revoked_at")]
+    if not active:
+        raise RuntimeError(
+            "Production requires API keys. Set TELEMETRYX_API_KEYS or create keys "
+            "via POST /admin/api-keys before deployment."
+        )

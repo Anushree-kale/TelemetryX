@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch, getApiKey, setApiKey } from "../api";
 
 export default function DeveloperTools({ apiBase }) {
   const [status, setStatus] = useState(null);
   const [adminKey, setAdminKey] = useState("");
   const [retrainMsg, setRetrainMsg] = useState(null);
   const [retrainBusy, setRetrainBusy] = useState(false);
+  const [apiKey, setApiKeyState] = useState(() => getApiKey());
+  const [newTeamKeyName, setNewTeamKeyName] = useState("");
+  const [createdKey, setCreatedKey] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const webhookUrl = `${apiBase.replace(/\/$/, "")}/webhook`;
 
   const loadStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${apiBase}/model/status`);
+      const res = await apiFetch(apiBase, "/model/status");
       if (!res.ok) return;
       setStatus(await res.json());
     } catch {
@@ -31,7 +35,7 @@ export default function DeveloperTools({ apiBase }) {
     }
     setRetrainBusy(true);
     try {
-      const res = await fetch(`${apiBase}${path}`, {
+      const res = await apiFetch(apiBase, path, {
         method: "POST",
         headers: { "X-Admin-Key": adminKey.trim() },
       });
@@ -64,6 +68,43 @@ export default function DeveloperTools({ apiBase }) {
   const retrainBurnout = (e) => {
     e.preventDefault();
     retrainEndpoint("/model/retrain-burnout", "Burnout retrain complete.");
+  };
+
+  const saveApiKey = (e) => {
+    e.preventDefault();
+    setApiKey(apiKey);
+    setRetrainMsg("✓ API key saved for this browser session.");
+  };
+
+  const createTeamKey = async (e) => {
+    e.preventDefault();
+    setCreatedKey(null);
+    if (!adminKey.trim()) {
+      setRetrainMsg("Enter the admin key to create team API keys.");
+      return;
+    }
+    setRetrainBusy(true);
+    try {
+      const res = await apiFetch(apiBase, "/admin/api-keys", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey.trim(),
+        },
+        body: JSON.stringify({
+          name: newTeamKeyName.trim() || "default",
+          team: newTeamKeyName.trim() || "default",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || res.statusText);
+      setCreatedKey(body.api_key);
+      setRetrainMsg("✓ New team API key created — copy it now.");
+    } catch (err) {
+      setRetrainMsg(`✗ ${err.message}`);
+    } finally {
+      setRetrainBusy(false);
+    }
   };
 
   const copy = () => {
@@ -228,6 +269,59 @@ export default function DeveloperTools({ apiBase }) {
           {retrainMsg && (
             <p className={`devtools-retrain-msg ${retrainMsg.startsWith("✓") ? "devtools-retrain-msg--ok" : "devtools-retrain-msg--err"}`}>
               {retrainMsg}
+            </p>
+          )}
+        </div>
+
+        {/* ── CARD 3: API access ── */}
+        <div className="card devtools-card">
+          <div className="devtools-card-icon-row">
+            <span className="devtools-card-icon">🔑</span>
+            <div>
+              <h2 className="devtools-card-title">API access</h2>
+              <p className="devtools-card-purpose">
+                When auth is enabled, every request needs an <code>X-API-Key</code> header.
+                Save your team key here or create new keys with the admin key.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={saveApiKey} className="retrain-form">
+            <label className="devtools-label">
+              Your API key
+              <input
+                type="password"
+                className="input-url devtools-key"
+                value={apiKey}
+                onChange={(e) => setApiKeyState(e.target.value)}
+                placeholder="tx_… or bootstrap key from TELEMETRYX_API_KEYS"
+                autoComplete="off"
+              />
+            </label>
+            <button type="submit" className="btn-primary">
+              Save API key
+            </button>
+          </form>
+
+          <form onSubmit={createTeamKey} className="retrain-form" style={{ marginTop: "1rem" }}>
+            <label className="devtools-label">
+              Create team key (admin)
+              <input
+                type="text"
+                className="input-url devtools-key"
+                value={newTeamKeyName}
+                onChange={(e) => setNewTeamKeyName(e.target.value)}
+                placeholder="Team or key name"
+              />
+            </label>
+            <button type="submit" className="btn-primary" disabled={retrainBusy}>
+              Generate API key
+            </button>
+          </form>
+
+          {createdKey && (
+            <p className="devtools-retrain-msg devtools-retrain-msg--ok">
+              New key (shown once): <code>{createdKey}</code>
             </p>
           )}
         </div>

@@ -22,3 +22,9 @@ Use this document for demos, pitches, and public copy so claims match the reposi
 ## Production deployment
 
 - Set `TELEMETRYX_ENV=production` (or `ENV=production`) and a strong `ADMIN_KEY`. The API refuses to start in production without `ADMIN_KEY`.
+- Set `TELEMETRYX_API_KEYS` or create keys via `POST /admin/api-keys` (requires `X-Admin-Key`). All non-public routes require `X-API-Key`.
+- Standalone synthesis API runs on port **8001** via `docker compose up synthesis`. Set `SYNTHESIS_API_KEY` in production.
+
+## CI
+
+- GitHub Actions runs `pytest` in `backend/tests/` against PostgreSQL and Redis service containers.
