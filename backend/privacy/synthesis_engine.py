@@ -324,21 +324,26 @@ class TimeSeriesLSTMSynthesizer:
         with torch.no_grad():
             feature_count = len(self.metrics)
             current = torch.zeros((1, 1, feature_count), dtype=torch.float32)
-            first_norm = (np.array([self._min_vals[col] for col in self.metrics]) - self._means) / self._stds
-            current[0, 0] = torch.tensor(first_norm, dtype=torch.float32)
-            norm_steps = [current[0, 0].numpy()]
+            means = torch.tensor(self._means, dtype=torch.float32)
+            stds = torch.tensor(self._stds, dtype=torch.float32)
+            first_norm = (
+                torch.tensor([self._min_vals[col] for col in self.metrics], dtype=torch.float32)
+                - means
+            ) / stds
+            current[0, 0] = first_norm
+            norm_steps = [current[0, 0].clone()]
             for _ in range(num_steps - 1):
                 pred = self.model(current)
                 next_step = pred[:, -1:, :] + torch.randn_like(pred[:, -1:, :]) * 0.05
-                norm_steps.append(next_step[0, 0].numpy())
+                norm_steps.append(next_step[0, 0].clone())
                 current = torch.cat([current, next_step], dim=1)
 
-            real_steps = np.array(norm_steps) * self._stds + self._means
+            real_steps = torch.stack(norm_steps) * stds + means
             output: list[dict[str, Any]] = []
             for i in range(num_steps):
                 step_dict: dict[str, Any] = {}
                 for idx, col in enumerate(self.metrics):
-                    val = float(real_steps[i, idx])
+                    val = float(real_steps[i, idx].item())
                     val = max(self._min_vals[col] * 0.5, min(self._max_vals[col] * 1.5, val))
                     step_dict[col] = _coerce_sample_value(col, val, col in INTEGER_LIKE_COLUMNS)
                 output.append(step_dict)
