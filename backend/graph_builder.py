@@ -219,7 +219,7 @@ def build_dependency_graph(
             if src in file_paths and tgt in file_paths:
                 key = (src, tgt)
                 edge_weights[key] = edge_weights.get(key, 0) + weight
-        for src, tgt, weight in edge_weights.items():
+        for (src, tgt), weight in edge_weights.items():
             if G.has_edge(src, tgt):
                 G[src][tgt]["weight"] += weight
             else:
