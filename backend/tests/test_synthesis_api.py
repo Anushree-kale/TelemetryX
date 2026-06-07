@@ -60,3 +60,24 @@ def test_validate_fidelity(synthesis_client):
     )
     assert response.status_code == 200
     assert "passed" in response.json()
+
+
+def test_tabular_pipeline(synthesis_client):
+    rows = [
+        {"lines_of_code": 100, "churn_90d": 2},
+        {"lines_of_code": 200, "churn_90d": 5},
+        {"lines_of_code": 150, "churn_90d": 3},
+    ]
+    response = synthesis_client.post(
+        "/v1/tabular/pipeline",
+        json={
+            "rows": rows,
+            "numeric_columns": ["lines_of_code", "churn_90d"],
+            "n_samples": 5,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["n_samples"] == 5
+    assert "validation_report" in body
+    assert "passed" in body["validation_report"]

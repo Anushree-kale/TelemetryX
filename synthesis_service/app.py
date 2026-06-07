@@ -102,6 +102,35 @@ class ValidateRequest(BaseModel):
     pass_rate_threshold: float = 0.75
 
 
+class TabularPipelineRequest(BaseModel):
+    rows: list[dict[str, Any]] = Field(..., description="Real rows to fit and replicate")
+    numeric_columns: list[str] = Field(..., min_length=1)
+    n_samples: int = Field(100, ge=1, le=100_000)
+    n_components: int = Field(3, ge=1, le=20)
+    row_id_column: str | None = None
+    ks_threshold: float = 0.2
+    js_threshold: float = 0.3
+    tvd_threshold: float = 0.3
+    pass_rate_threshold: float = 0.75
+
+
+@app.get("/")
+def root():
+    return {
+        "service": "telemetryx-synthesis",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": [
+            "/v1/methods",
+            "/v1/tabular/generate",
+            "/v1/tabular/pipeline",
+            "/v1/sequence/generate",
+            "/v1/validate",
+        ],
+    }
+
+
 @app.get("/health")
 def health():
     return {
@@ -176,3 +205,34 @@ def validate(body: ValidateRequest):
         pass_rate_threshold=body.pass_rate_threshold,
     )
     return report
+
+
+@app.post("/v1/tabular/pipeline")
+def tabular_pipeline(body: TabularPipelineRequest):
+    """Generate synthetic tabular rows and run fidelity validation in one request."""
+    if len(body.rows) < 2:
+        raise HTTPException(status_code=400, detail="Need at least 2 rows to fit tabular synthesizer")
+
+    synth = TabularGMMSynthesizer(
+        n_components=body.n_components,
+        numeric_columns=body.numeric_columns,
+        row_id_column=body.row_id_column,
+    )
+    synth.fit(body.rows)
+    samples = synth.sample(body.n_samples)
+    report = validate_fidelity(
+        real_data=body.rows,
+        synthetic_data=samples,
+        metrics=body.numeric_columns,
+        ks_threshold=body.ks_threshold,
+        js_threshold=body.js_threshold,
+        tvd_threshold=body.tvd_threshold,
+        pass_rate_threshold=body.pass_rate_threshold,
+    )
+    return {
+        "method": "TabularGMMSynthesizer",
+        "n_samples": len(samples),
+        "numeric_columns": body.numeric_columns,
+        "rows": samples,
+        "validation_report": report,
+    }

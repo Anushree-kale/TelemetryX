@@ -114,8 +114,29 @@ def get_model_provenance(clf: xgb.XGBClassifier | None = None) -> dict[str, Any]
     training_source = _read_training_source()
     validation_metrics = evaluate_on_validation(model)
 
+    if validation_metrics:
+        credibility = "validated"
+        disclaimer = (
+            "Scores are ML predictions with hold-out validation metrics on anonymized cohort data."
+        )
+    elif training_source == "labeled_validation":
+        credibility = "labeled_training"
+        disclaimer = (
+            "Model trained on labeled cohort data but hold-out validation set is too small "
+            f"(need ≥{MIN_LABELED_ROWS_TO_VALIDATE} rows). Treat scores as directional."
+        )
+    else:
+        credibility = "synthetic_only"
+        disclaimer = (
+            "Model trained on synthetic heuristic data only — no real-world validation. "
+            "Scores are directional signals, not calibrated burnout predictions. "
+            f"Add ≥{MIN_LABELED_ROWS_TO_TRAIN} labeled rows to backend/data/burnout_validation.csv to upgrade."
+        )
+
     return {
         "training_source": training_source,
+        "credibility": credibility,
+        "disclaimer": disclaimer,
         "validation_dataset_present": labeled_count >= MIN_LABELED_ROWS_TO_VALIDATE,
         "validation_row_count": labeled_count,
         "validation_metrics": validation_metrics,
@@ -124,6 +145,18 @@ def get_model_provenance(clf: xgb.XGBClassifier | None = None) -> dict[str, Any]
             "(see burnout_validation.csv.example). Override path with BURNOUT_VALIDATION_PATH."
         ),
     }
+
+
+def heuristic_burnout_score(metrics: dict[str, float]) -> float:
+    """Rule-based score mirroring synthetic label generation — baseline when ML is unvalidated."""
+    c_risk = float(metrics.get("top_author_pct", 0))
+    f_risk = float(metrics.get("bug_fix_ratio", 0))
+    days = float(metrics.get("days_since_last_commit", 0))
+    authors = float(metrics.get("unique_author_count", 1))
+    a_risk = 1.0 - min(days / 90.0, 1.0)
+    s_risk = 1.0 - min(authors / 10.0, 1.0)
+    score = 0.4 * c_risk + 0.3 * f_risk + 0.2 * a_risk + 0.1 * s_risk
+    return round(min(1.0, max(0.0, score)), 4)
 
 
 def _read_training_source() -> str:
@@ -251,6 +284,8 @@ def predict_burnout(job_id: int) -> dict[str, Any]:
     )
 
     prob = float(clf.predict_proba(x_input)[0][1])
+    provenance = get_model_provenance(clf)
+    heuristic_score = heuristic_burnout_score(metrics)
 
     if prob >= 0.70:
         risk_level = "High"
@@ -316,7 +351,8 @@ def predict_burnout(job_id: int) -> dict[str, Any]:
         "job_id": job_id,
         "risk_level": risk_level,
         "risk_score": prob,
+        "heuristic_score": heuristic_score,
         "top_drivers": top_drivers,
         "metrics": metrics,
-        "model_info": get_model_provenance(clf),
+        "model_info": provenance,
     }

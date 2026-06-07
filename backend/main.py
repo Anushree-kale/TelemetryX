@@ -170,15 +170,19 @@ def get_burnout_assessment(job_id: int):
 
     import burnout_model
 
+    metrics = assessment["metrics"]
+    provenance = burnout_model.get_model_provenance()
+
     return {
         "status": "complete",
         "job_id": job_id,
         "risk_level": assessment["risk_level"],
         "risk_score": assessment["risk_score"],
+        "heuristic_score": burnout_model.heuristic_burnout_score(metrics),
         "top_drivers": assessment["top_drivers"],
-        "metrics": assessment["metrics"],
+        "metrics": metrics,
         "created_at": assessment["created_at"],
-        "model_info": burnout_model.get_model_provenance(),
+        "model_info": provenance,
     }
 
 
