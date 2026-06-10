@@ -18,6 +18,7 @@ import PrivacyTab from "./PrivacyTab";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
+import RepoScrollPicker from "./RepoScrollPicker";
 import FailureRiskTab from "./FailureRiskTab";
 import { PANEL_TITLES } from "../labels";
 import ExportButton from "./ExportButton";
@@ -37,6 +38,25 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [catPhase, setCatPhase] = useState("on-card");
   const walkTimerRef = useRef(null);
+  const scanSectionRef = useRef(null);
+
+  const handleRepoSelect = useCallback((repoName) => {
+    const url = /^https?:\/\//i.test(repoName)
+      ? repoName
+      : `https://github.com/${repoName}`;
+
+    scanSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    window.setTimeout(() => {
+      const input = scanSectionRef.current?.querySelector('input[name="repo_url"]');
+      if (!input) return;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (setter) setter.call(input, url);
+      else input.value = url;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }, 450);
+  }, []);
 
   const loadJobResults = useCallback(
     async (jobId) => {
@@ -140,7 +160,12 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
       />
 
       <div className="dashboard-stage">
+        {uiPhase === "landing" && (
+          <RepoScrollPicker onRepoSelect={handleRepoSelect} />
+        )}
+
         <section
+          ref={scanSectionRef}
           className={`scan-stage ${scanCompact ? "scan-stage--compact" : "scan-stage--centered"}`}
         >
           <div className="scan-card">

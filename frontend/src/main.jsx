@@ -4,6 +4,8 @@ import App from "./App";
 import "./index.css";
 import "./theme.css";
 
+document.documentElement.style.scrollBehavior = "smooth";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />
