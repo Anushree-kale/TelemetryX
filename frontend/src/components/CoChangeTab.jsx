@@ -90,8 +90,8 @@ export default function CoChangeTab({ jobId, apiBase }) {
       <div key={pageIndex} className="co-change-tab">
         {pageIndex === 0 && (
           <p className="card-hint co-change-intro">
-            Pairs of files edited in the same commit often (change coupling). Think: “if I touch A, I
-            probably need to touch B.” Same data as dashed purple edges in the dependency map.{" "}
+            Pairs of files edited in the same commit often (change coupling). Think: "if I touch A, I
+            probably need to touch B." Same data as dashed purple edges in the dependency map.{" "}
             {sorted.length} pairs total.
           </p>
         )}
