@@ -660,6 +660,72 @@ body {
   color: #fff !important;
 }
 
+/* Sortable table headers */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s;
+}
+
+.sortable:hover {
+  background-color: var(--accent-soft);
+}
+
+/* Table styling for pagination */
+.co-change-table,
+.failure-risk-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+}
+
+.co-change-table th,
+.failure-risk-table th {
+  background: var(--bg-muted);
+  color: var(--text);
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.co-change-table td,
+.failure-risk-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.co-change-table tbody tr:hover,
+.failure-risk-table tbody tr:hover {
+  background: var(--bg-muted);
+}
+
+.co-change-table th.right,
+.failure-risk-table th.right {
+  text-align: right;
+}
+
+.co-change-table td.right,
+.failure-risk-table td.right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.co-change-table td.cell-path,
+.failure-risk-table td .failure-risk-path {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--accent-hover);
+  word-break: break-all;
+}
+
+.co-change-table td.strong,
+.failure-risk-table td.strong {
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .dashboard-shell {
     flex-direction: column-reverse;
@@ -721,6 +787,7 @@ body {
 .panel-pager-indicator {
   font-size: 0.85rem;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .panel-pager-btn {

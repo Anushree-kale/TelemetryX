@@ -9,8 +9,10 @@ import {
   Cell,
   CartesianGrid,
 } from "recharts";
+import PanelPager from "./PanelPager";
 
 const POLL_INTERVAL_MS = 2000;
+const ROWS_PER_PAGE = 18;
 
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
@@ -63,6 +65,8 @@ export default function FailureRiskTab({ jobId, apiBase }) {
   const [status, setStatus] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sortKey, setSortKey] = useState("risk_score");
+  const [sortDir, setSortDir] = useState("desc");
 
   useEffect(() => {
     let timerId = null;
@@ -80,7 +84,6 @@ export default function FailureRiskTab({ jobId, apiBase }) {
           setPredictions(data.predictions || []);
           setLoading(false);
         } else {
-          // Keep polling if status is still pending
           timerId = setTimeout(fetchPredictions, POLL_INTERVAL_MS);
         }
       } catch (err) {
@@ -109,24 +112,43 @@ export default function FailureRiskTab({ jobId, apiBase }) {
       }));
   }, [predictions]);
 
-  if (loading && status === "pending") {
-    return (
-      <div className="failure-risk-loading" style={{ padding: "2rem", textAlign: "center" }}>
-        <div className="spinner" style={{ marginBottom: "1rem" }}>⏳</div>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
-          Running LSTM failure predictor model on metrics sequences…
-        </p>
-      </div>
-    );
-  }
+  // Sort table data
+  const sorted = useMemo(() => {
+    const copy = [...predictions];
+    copy.sort((a, b) => {
+      let av = a[sortKey];
+      let bv = b[sortKey];
+      
+      if (sortKey === "risk_score") {
+        av = a.risk_score;
+        bv = b.risk_score;
+      } else if (sortKey === "risk_level") {
+        av = a.risk_level;
+        bv = b.risk_level;
+      } else if (sortKey === "file_path") {
+        av = a.file_path;
+        bv = b.file_path;
+      }
 
-  if (error) {
-    return (
-      <div className="failure-risk-error" style={{ padding: "2rem", color: "#f87171" }}>
-        <p>⚠️ Error: {error}</p>
-      </div>
-    );
-  }
+      if (typeof av === "string") {
+        const c = av.localeCompare(bv);
+        return sortDir === "asc" ? c : -c;
+      }
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+    return copy;
+  }, [predictions, sortKey, sortDir]);
+
+  const toggleSort = (key) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "risk_score" ? "desc" : "asc");
+    }
+  };
+
+  const indicator = (key) => (key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   const getRiskBadgeStyles = (level) => {
     switch (level) {
@@ -157,116 +179,147 @@ export default function FailureRiskTab({ jobId, apiBase }) {
     return "#10b981";
   };
 
-  return (
-    <div className="failure-risk-tab">
+  if (loading && status === "pending") {
+    return (
+      <div className="failure-risk-loading" style={{ padding: "2rem", textAlign: "center" }}>
+        <div className="spinner" style={{ marginBottom: "1rem" }}>⏳</div>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
+          Running LSTM failure predictor model on metrics sequences…
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="failure-risk-error" style={{ padding: "2rem", color: "#f87171" }}>
+        <p>⚠️ Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (predictions.length === 0) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+        No files analyzed in this job.
+      </div>
+    );
+  }
+
+  // Chart page
+  const chartPage = (
+    <div className="failure-risk-widget">
       <p className="card-hint" style={{ marginBottom: "1.5rem" }}>
         This LSTM failure model evaluates the trend of code churn, cyclomatic complexity, and commit frequency across historical commits. It highlights files at high risk of regression or immediate failure.
       </p>
-
-      {predictions.length === 0 ? (
-        <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-          No files analyzed in this job.
-        </div>
-      ) : (
-        <>
-          <div className="failure-risk-widget">
-            <h3>
-              Top 10 Highest Risk Modules
-            </h3>
-            <div style={{ width: "100%", height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={topRiskData}
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" horizontal={false} />
-                  <XAxis
-                    type="number"
-                    domain={[0, 1]}
-                    tickFormatter={(tick) => `${(tick * 100).toFixed(0)}%`}
-                    stroke="#64748b"
-                    fontSize={11}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="#64748b"
-                    fontSize={11}
-                    width={100}
-                    tickFormatter={(name) => (name.length > 15 ? `${name.slice(0, 13)}…` : name)}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="riskScore" radius={[0, 4, 4, 0]} barSize={16}>
-                    {topRiskData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getRiskColor(entry.riskScore)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="failure-risk-widget">
-            <h3>
-              Failure Risk Directory ({predictions.length} modules)
-            </h3>
-            <div style={{ overflowX: "auto" }}>
-              <table className="failure-risk-table">
-                <thead>
-                  <tr>
-                    <th>
-                      Module Path
-                    </th>
-                    <th style={{ width: "120px" }}>
-                      Risk Level
-                    </th>
-                    <th style={{ width: "150px" }}>
-                      Failure Likelihood
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {predictions.map((p) => (
-                    <tr key={p.id || p.module_id}>
-                      <td>
-                        <span className="failure-risk-path">
-                          {p.file_path}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            padding: "0.2rem 0.5rem",
-                            borderRadius: "4px",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            display: "inline-block",
-                            ...getRiskBadgeStyles(p.risk_level),
-                          }}
-                        >
-                          {p.risk_level}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          color: getRiskColor(p.risk_score),
-                          fontWeight: 600,
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {(p.risk_score * 100).toFixed(1)}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+      <h3>Top 10 Highest Risk Modules</h3>
+      <div style={{ width: "100%", height: 300 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            layout="vertical"
+            data={topRiskData}
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+          >
+            <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" horizontal={false} />
+            <XAxis
+              type="number"
+              domain={[0, 1]}
+              tickFormatter={(tick) => `${(tick * 100).toFixed(0)}%`}
+              stroke="#64748b"
+              fontSize={11}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              stroke="#64748b"
+              fontSize={11}
+              width={100}
+              tickFormatter={(name) => (name.length > 15 ? `${name.slice(0, 13)}…` : name)}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="riskScore" radius={[0, 4, 4, 0]} barSize={16}>
+              {topRiskData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getRiskColor(entry.riskScore)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
-}
 
+  // Table pages
+  const pageCount = Math.ceil(sorted.length / ROWS_PER_PAGE);
+  const tablePages = Array.from({ length: pageCount }, (_, pageIndex) => {
+    const slice = sorted.slice(pageIndex * ROWS_PER_PAGE, (pageIndex + 1) * ROWS_PER_PAGE);
+    return (
+      <div key={pageIndex} className="failure-risk-widget">
+        {pageIndex === 0 && (
+          <h3>Failure Risk Directory ({sorted.length} modules)</h3>
+        )}
+        <div style={{ overflowX: "auto" }}>
+          <table className="failure-risk-table">
+            <thead>
+              <tr>
+                <th onClick={() => toggleSort("file_path")} className="sortable">
+                  Module Path{indicator("file_path")}
+                </th>
+                <th style={{ width: "120px" }} onClick={() => toggleSort("risk_level")} className="sortable">
+                  Risk Level{indicator("risk_level")}
+                </th>
+                <th style={{ width: "150px" }} onClick={() => toggleSort("risk_score")} className="sortable">
+                  Failure Likelihood{indicator("risk_score")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {slice.map((p) => (
+                <tr key={p.id || p.module_id}>
+                  <td>
+                    <span className="failure-risk-path">
+                      {p.file_path}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "4px",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        display: "inline-block",
+                        ...getRiskBadgeStyles(p.risk_level),
+                      }}
+                    >
+                      {p.risk_level}
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      color: getRiskColor(p.risk_score),
+                      fontWeight: 600,
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {(p.risk_score * 100).toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  });
+
+  const allPages = [chartPage, ...tablePages];
+
+  return (
+    <PanelPager
+      pages={allPages}
+      resetKey={`failure-risk-${jobId}`}
+      ariaLabel="Failure risk analysis pages"
+    />
+  );
+}
