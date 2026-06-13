@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PanelPager from "./PanelPager";
+
+const ROWS_PER_PAGE = 18;
 
 export default function CoChangeTab({ jobId, apiBase }) {
   const [pairs, setPairs] = useState([]);
@@ -79,41 +82,54 @@ export default function CoChangeTab({ jobId, apiBase }) {
     );
   }
 
-  const display = sorted.slice(0, 200);
+  const pageCount = Math.ceil(sorted.length / ROWS_PER_PAGE);
+
+  const pages = Array.from({ length: pageCount }, (_, pageIndex) => {
+    const slice = sorted.slice(pageIndex * ROWS_PER_PAGE, (pageIndex + 1) * ROWS_PER_PAGE);
+    return (
+      <div key={pageIndex} className="co-change-tab">
+        {pageIndex === 0 && (
+          <p className="card-hint co-change-intro">
+            Pairs of files edited in the same commit often (change coupling). Think: “if I touch A, I
+            probably need to touch B.” Same data as dashed purple edges in the dependency map.{" "}
+            {sorted.length} pairs total.
+          </p>
+        )}
+        <div className="co-change-table-wrap">
+          <table className="co-change-table">
+            <thead>
+              <tr>
+                <th onClick={() => toggleSort("file_a")} className="sortable">
+                  File A{indicator("file_a")}
+                </th>
+                <th onClick={() => toggleSort("file_b")} className="sortable">
+                  File B{indicator("file_b")}
+                </th>
+                <th onClick={() => toggleSort("co_change_count")} className="sortable right">
+                  Times changed together{indicator("co_change_count")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {slice.map((row, i) => (
+                <tr key={`${row.file_a}-${row.file_b}-${i}`}>
+                  <td className="cell-path">{row.file_a}</td>
+                  <td className="cell-path">{row.file_b}</td>
+                  <td className="right strong">{row.co_change_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  });
 
   return (
-    <div className="co-change-tab">
-      <p className="card-hint co-change-intro">
-        Pairs of files edited in the same commit often (change coupling). Think: “if I touch A, I
-        probably need to touch B.” Same data as dashed purple edges in the dependency map. Showing{" "}
-        {display.length} of {pairs.length} pairs.
-      </p>
-      <div className="co-change-table-wrap">
-        <table className="co-change-table">
-          <thead>
-            <tr>
-              <th onClick={() => toggleSort("file_a")} className="sortable">
-                File A{indicator("file_a")}
-              </th>
-              <th onClick={() => toggleSort("file_b")} className="sortable">
-                File B{indicator("file_b")}
-              </th>
-              <th onClick={() => toggleSort("co_change_count")} className="sortable right">
-                Times changed together{indicator("co_change_count")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {display.map((row, i) => (
-              <tr key={`${row.file_a}-${row.file_b}-${i}`}>
-                <td className="cell-path">{row.file_a}</td>
-                <td className="cell-path">{row.file_b}</td>
-                <td className="right strong">{row.co_change_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <PanelPager
+      pages={pages}
+      resetKey={`${jobId}-${sortKey}-${sortDir}`}
+      ariaLabel="Co-change analysis pages"
+    />
   );
 }

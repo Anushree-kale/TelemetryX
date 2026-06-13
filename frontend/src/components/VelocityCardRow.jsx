@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   motion,
   useMotionValue,
@@ -17,11 +17,10 @@ const CARD_STRIDE = CARD_WIDTH + CARD_GAP;
 
 /**
  * Horizontal 3D card strip driven by scroll velocity.
- * useScroll + useVelocity → useSpring smooths velocity → per-card useTransform
- * applies a phased rotateX / y wave. wrap() + scroll-synced x offset loops the row.
+ * useScroll → useVelocity → useSpring smooths speed; each card gets a phased
+ * rotateX / y wave whose amplitude scales with |velocity|. wrap() loops x offset.
  */
 export default function VelocityCardRow({ repos, onSelectRepo }) {
-  const containerRef = useRef(null);
   const { scrollY } = useScroll();
   const scrollVelocity = useVelocity(scrollY);
   const smoothVelocity = useSpring(scrollVelocity, { stiffness: 400, damping: 90 });
@@ -32,19 +31,19 @@ export default function VelocityCardRow({ repos, onSelectRepo }) {
   const baseX = useMotionValue(0);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    baseX.set(wrap(-loopWidth, 0, -latest * 0.35));
+    baseX.set(wrap(-loopWidth, 0, -latest * 0.42));
   });
 
   const x = useTransform(baseX, (v) => `${v}px`);
+  const velocityFactor = useTransform(smoothVelocity, (v) => Math.min(Math.abs(v) / 500, 1.8));
 
   return (
     <div
-      ref={containerRef}
       style={{
         width: "100%",
-        overflow: "hidden",
-        perspective: "1200px",
-        perspectiveOrigin: "50% 40%",
+        overflow: "visible",
+        perspective: "1400px",
+        perspectiveOrigin: "50% 35%",
       }}
     >
       <motion.div
@@ -54,16 +53,18 @@ export default function VelocityCardRow({ repos, onSelectRepo }) {
           x,
           transformStyle: "preserve-3d",
           width: "max-content",
-          padding: "32px 0 48px",
+          padding: "48px 12vw 64px",
           margin: "0 auto",
+          overflow: "visible",
         }}
       >
         {items.map((repo, index) => (
           <VelocityCard
             key={`${repo.name}-${index}`}
             repo={repo}
-            index={index}
-            smoothVelocity={smoothVelocity}
+            cardIndex={index}
+            scrollY={scrollY}
+            velocityFactor={velocityFactor}
             onSelect={onSelectRepo}
           />
         ))}
@@ -72,19 +73,18 @@ export default function VelocityCardRow({ repos, onSelectRepo }) {
   );
 }
 
-/** Applies velocity-linked wave offset per card (index * 0.08 phase). */
-function VelocityCard({ repo, index, smoothVelocity, onSelect }) {
-  const phase = index * 0.08;
+/** Per-card wave: phase = index * 0.08, amplitude from velocityFactor × scroll phase. */
+function VelocityCard({ repo, cardIndex, scrollY, velocityFactor, onSelect }) {
+  const phase = cardIndex * 0.08;
 
-  const rotateX = useTransform(smoothVelocity, (v) => {
-    const intensity = Math.min(Math.abs(v) / 1200, 1);
-    const direction = v >= 0 ? 1 : -1;
-    return direction * intensity * 16 * Math.sin(phase + v * 0.0006);
+  const rotateX = useTransform([velocityFactor, scrollY], ([factor, scroll]) => {
+    const wave = Math.sin(phase + scroll * 0.014);
+    return factor * 22 * wave;
   });
 
-  const y = useTransform(smoothVelocity, (v) => {
-    const intensity = Math.min(Math.abs(v) / 900, 1);
-    return intensity * 28 * Math.sin(phase + v * 0.0009);
+  const y = useTransform([velocityFactor, scrollY], ([factor, scroll]) => {
+    const wave = Math.sin(phase + scroll * 0.014 + Math.PI / 2);
+    return factor * 42 * wave;
   });
 
   return (
@@ -94,6 +94,7 @@ function VelocityCard({ repo, index, smoothVelocity, onSelect }) {
         y,
         transformStyle: "preserve-3d",
         flexShrink: 0,
+        overflow: "visible",
       }}
     >
       <RepoCard repo={repo} onSelect={onSelect} />

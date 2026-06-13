@@ -10,6 +10,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [repoList, setRepoList] = useState([]);
+  const [showDashboardChrome, setShowDashboardChrome] = useState(false);
 
   const refreshRepoList = useCallback(() => {
     apiFetch(API_BASE, "/repos")
@@ -27,13 +28,14 @@ export default function App() {
   const isDashboard = activeTab === "dashboard";
 
   return (
-    <div className={`app-shell${isDashboard ? " app-shell--dashboard" : ""}`}>
+    <div className={`app-shell${isDashboard ? " app-shell--dashboard" : ""}${isDashboard && !showDashboardChrome ? " app-shell--landing" : ""}`}>
       <header className="app-header">
         <div className="app-brand">
           <h1>TelemetryX</h1>
           <p className="subtitle">{APP_TAGLINE}</p>
         </div>
-        <div className="workspace-tabs">
+        {( !isDashboard || showDashboardChrome) && (
+          <div className="workspace-tabs">
           <button
             type="button"
             className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
@@ -55,7 +57,8 @@ export default function App() {
           >
             Hooks &amp; model
           </button>
-        </div>
+          </div>
+        )}
       </header>
 
       <main className="app-main">
@@ -64,6 +67,7 @@ export default function App() {
             apiBase={API_BASE}
             repoList={repoList}
             onReposChanged={refreshRepoList}
+            onChromeVisibilityChange={setShowDashboardChrome}
           />
         )}
 

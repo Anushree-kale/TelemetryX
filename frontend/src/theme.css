@@ -682,3 +682,76 @@ body {
     height: 62px;
   }
 }
+
+/* Landing — hide chrome until a repo is chosen */
+.app-shell--landing .app-header {
+  background: transparent;
+}
+
+.dashboard-shell--landing {
+  min-height: 100vh;
+}
+
+.dashboard-shell--landing .dashboard-stage {
+  padding-top: 0;
+}
+
+/* Page-wise section navigation */
+.panel-pager {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.panel-pager-body {
+  min-height: 200px;
+}
+
+.panel-pager-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.panel-pager-indicator {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.panel-pager-btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.panel-pager-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.panel-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.panel-pager-btn--next:not(:disabled) {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.panel-pager-btn--next:not(:disabled):hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}

@@ -93,7 +93,17 @@ export default function RepoScrollPicker({ onRepoSelect, repos = RECENT_REPOS })
           ))}
         </div>
       ) : (
-        <VelocityCardRow repos={repos} onSelectRepo={handleSelect} />
+        <>
+          <VelocityCardRow repos={repos} onSelectRepo={handleSelect} />
+          <div
+            aria-hidden
+            style={{
+              height: "100vh",
+              width: "100%",
+              pointerEvents: "none",
+            }}
+          />
+        </>
       )}
     </section>
   );

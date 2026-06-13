@@ -11,7 +11,8 @@ import HistoryTrends from "./HistoryTrends";
 import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
 import OverviewScorecard from "./OverviewScorecard";
-import DebtHeatmap from "./DebtHeatmap";
+import TopDebtModules from "./TopDebtModules";
+import PanelPager from "./PanelPager";
 import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import TeamHealthTab from "./TeamHealthTab";
 import PrivacyTab from "./PrivacyTab";
@@ -25,7 +26,7 @@ import ExportButton from "./ExportButton";
 import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
 /** landing → scanning → results → sidebar-ready */
-export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }) {
+export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, onChromeVisibilityChange }) {
   const [activePanel, setActivePanel] = useState("overview");
   const [modules, setModules] = useState([]);
   const [status, setStatus] = useState(null);
@@ -35,12 +36,14 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const [privacyMode, setPrivacyMode] = useState(false);
 
   const [uiPhase, setUiPhase] = useState("landing");
+  const [repoSelected, setRepoSelected] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [catPhase, setCatPhase] = useState("on-card");
   const walkTimerRef = useRef(null);
   const scanSectionRef = useRef(null);
 
   const handleRepoSelect = useCallback((repoName) => {
+    setRepoSelected(true);
     const url = /^https?:\/\//i.test(repoName)
       ? repoName
       : `https://github.com/${repoName}`;
@@ -139,25 +142,59 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
   const hasModules = modules.length > 0;
   const showResults = uiPhase === "results" && hasModules && !showResultsSkeleton;
   const scanCompact = uiPhase === "scanning" || uiPhase === "results";
+  const showWorkspaceChrome = repoSelected || hasModules || uiPhase !== "landing";
+
+  useEffect(() => {
+    onChromeVisibilityChange?.(showWorkspaceChrome);
+  }, [showWorkspaceChrome, onChromeVisibilityChange]);
 
   const handleStatusChange = (s) => {
     setStatus(s);
     if (s === "failed") {
       setUiPhase("landing");
+      setRepoSelected(false);
       setCatPhase("on-card");
       setSidebarExpanded(false);
     }
   };
 
-  return (
-    <div className="dashboard-shell">
-      <SideNav
-        activePanel={activePanel}
-        onSelect={setActivePanel}
-        expanded={sidebarExpanded}
-        disabled={!hasModules}
-        showCat={catPhase === "on-sidebar"}
+  const overviewPages = [
+    <>
+      <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
+      <OverviewScorecard
+        modules={modules}
+        repoUrl={activeRepoUrl}
+        jobId={jobId}
+        apiBase={apiBase}
+        onNavigate={setActivePanel}
       />
+    </>,
+    <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />,
+    <div className="card">
+      <div className="card-heading-row">
+        <h2>Top debt modules</h2>
+        <SectionHint label="Debt ranking">
+          <p>
+            Highest predicted debt scores from the XGBoost model. Use this ranked view to
+            prioritize remediation before diving into individual files.
+          </p>
+        </SectionHint>
+      </div>
+      <TopDebtModules modules={modules} />
+    </div>,
+  ];
+
+  return (
+    <div className={`dashboard-shell${showWorkspaceChrome ? "" : " dashboard-shell--landing"}`}>
+      {showWorkspaceChrome && (
+        <SideNav
+          activePanel={activePanel}
+          onSelect={setActivePanel}
+          expanded={sidebarExpanded}
+          disabled={!hasModules}
+          showCat={catPhase === "on-sidebar"}
+        />
+      )}
 
       <div className="dashboard-stage">
         {uiPhase === "landing" && (
@@ -215,29 +252,11 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged }
             </header>
 
             {activePanel === "overview" && (
-              <>
-                <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
-                <OverviewScorecard
-                  modules={modules}
-                  repoUrl={activeRepoUrl}
-                  jobId={jobId}
-                  apiBase={apiBase}
-                  onNavigate={setActivePanel}
-                />
-                <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />
-                <div className="card">
-                  <div className="card-heading-row">
-                    <h2>Debt heatmap</h2>
-                    <SectionHint label="Heatmap">
-                      <p>
-                        File-level debt scores from the XGBoost debt model. Darker cells indicate
-                        higher predicted rework risk.
-                      </p>
-                    </SectionHint>
-                  </div>
-                  <DebtHeatmap modules={modules} />
-                </div>
-              </>
+              <PanelPager
+                pages={overviewPages}
+                resetKey={`overview-${jobId}`}
+                ariaLabel="Overview pages"
+              />
             )}
 
             {activePanel === "fixes" && jobId && (
