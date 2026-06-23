@@ -110,6 +110,16 @@ def _default_for_column(column: str) -> float:
     return defaults.get(column, 0.0)
 
 
+def _json_safe_float(val: float | None) -> float | None:
+    """Coerce numpy/float scalars to JSON-serializable values (no NaN/Inf)."""
+    if val is None:
+        return None
+    f = float(val)
+    if not np.isfinite(f):
+        return None
+    return f
+
+
 def _coerce_sample_value(column: str, val: float, as_int: bool) -> int | float:
     if column in INTEGER_LIKE_COLUMNS:
         return max(0, int(round(val)))
@@ -406,17 +416,32 @@ def validate_fidelity(
 
         if SCIPY_AVAILABLE:
             ks_stat, ks_pvalue = ks_2samp(real_vals, synth_vals)
-            combined_min = min(real_vals.min(), synth_vals.min())
-            combined_max = max(real_vals.max(), synth_vals.max())
-            n_bins = max(10, int(np.sqrt(len(real_vals) + len(synth_vals))))
-            bins = np.linspace(combined_min, combined_max, n_bins + 1)
-            real_hist, _ = np.histogram(real_vals, bins=bins, density=True)
-            synth_hist, _ = np.histogram(synth_vals, bins=bins, density=True)
-            eps = 1e-10
-            real_hist = (real_hist + eps) / (real_hist + eps).sum()
-            synth_hist = (synth_hist + eps) / (synth_hist + eps).sum()
-            js_distance = float(jensenshannon(real_hist, synth_hist, base=2))
-            tvd_distance = float(0.5 * np.sum(np.abs(real_hist - synth_hist)))
+            combined_min = float(min(real_vals.min(), synth_vals.min()))
+            combined_max = float(max(real_vals.max(), synth_vals.max()))
+            if combined_min == combined_max:
+                # Constant (or identical) distributions — histogram distances are undefined.
+                js_distance = 0.0
+                tvd_distance = 0.0
+            else:
+                n_bins = max(10, int(np.sqrt(len(real_vals) + len(synth_vals))))
+                bins = np.linspace(combined_min, combined_max, n_bins + 1)
+                real_hist, _ = np.histogram(real_vals, bins=bins, density=True)
+                synth_hist, _ = np.histogram(synth_vals, bins=bins, density=True)
+                eps = 1e-10
+                real_sum = float((real_hist + eps).sum())
+                synth_sum = float((synth_hist + eps).sum())
+                if real_sum <= 0 or synth_sum <= 0:
+                    js_distance = 0.0
+                    tvd_distance = 0.0
+                else:
+                    real_hist = (real_hist + eps) / real_sum
+                    synth_hist = (synth_hist + eps) / synth_sum
+                    js_distance = float(jensenshannon(real_hist, synth_hist, base=2))
+                    tvd_distance = float(0.5 * np.sum(np.abs(real_hist - synth_hist)))
+                    if not np.isfinite(js_distance):
+                        js_distance = 0.0
+                    if not np.isfinite(tvd_distance):
+                        tvd_distance = 0.0
         else:
             real_mean, real_std = real_vals.mean(), real_vals.std() + 1e-10
             synth_mean = synth_vals.mean()
@@ -433,11 +458,16 @@ def validate_fidelity(
         if metric_passed:
             passed_count += 1
 
+        ks_stat_safe = _json_safe_float(ks_stat)
+        ks_pvalue_safe = _json_safe_float(ks_pvalue)
+        js_safe = _json_safe_float(js_distance)
+        tvd_safe = _json_safe_float(tvd_distance)
+
         report["per_metric"][metric] = {
-            "ks_stat": round(float(ks_stat), 6),
-            "ks_pvalue": round(float(ks_pvalue), 6) if not np.isnan(ks_pvalue) else None,
-            "js_distance": round(float(js_distance), 6),
-            "tvd_distance": round(float(tvd_distance), 6),
+            "ks_stat": round(ks_stat_safe, 6) if ks_stat_safe is not None else None,
+            "ks_pvalue": round(ks_pvalue_safe, 6) if ks_pvalue_safe is not None else None,
+            "js_distance": round(js_safe, 6) if js_safe is not None else None,
+            "tvd_distance": round(tvd_safe, 6) if tvd_safe is not None else None,
             "passed": metric_passed,
         }
 

@@ -118,3 +118,19 @@ def test_fidelity_validation_gate():
     report = gan_engine.validate_fidelity(real, synthetic, metrics=["lines_of_code", "churn_90d"])
     assert "passed" in report
     assert "per_metric" in report
+
+
+def test_fidelity_validation_constant_metric_is_json_safe():
+    """Constant columns (e.g. debt_score=0 everywhere) must not emit NaN."""
+    import json
+    import math
+
+    real = [{"debt_score": 0.0, "lines_of_code": 100 + i} for i in range(20)]
+    synthetic = [{"debt_score": 0.0, "lines_of_code": 100 + i + 1} for i in range(20)]
+    report = synthesis_engine.validate_fidelity(
+        real, synthetic, metrics=["debt_score", "lines_of_code"]
+    )
+    json.dumps(report)
+    debt = report["per_metric"]["debt_score"]
+    assert debt["js_distance"] is None or not math.isnan(debt["js_distance"])
+    assert debt["tvd_distance"] is None or not math.isnan(debt["tvd_distance"])
