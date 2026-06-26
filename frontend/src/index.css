@@ -1285,13 +1285,13 @@ h1 {
 
 .graph-tab-body {
   display: flex;
-  min-height: 480px;
+  min-height: 620px;
 }
 
 .cytoscape-container {
   flex: 1;
-  min-height: 480px;
-  background: #090d12;
+  min-height: 620px;
+  background: radial-gradient(ellipse at center, #0f1724 0%, #090d12 70%);
 }
 
 .graph-side-panel {
@@ -1642,6 +1642,77 @@ h1 {
   font-size: 0.75rem;
   color: #8b9cb3;
   margin-right: 0.25rem;
+}
+
+.graph-toggle-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.graph-toggle-check input {
+  accent-color: #3b82f6;
+}
+
+.graph-search-wrap {
+  position: relative;
+  min-width: 160px;
+}
+
+.graph-search-input {
+  width: 100%;
+  min-width: 160px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #2a3548;
+  background: #0f1520;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+}
+
+.graph-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #141b25;
+  border: 1px solid #2a3548;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.graph-search-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.graph-search-results button:hover {
+  background: #1e293b;
+}
+
+.graph-search-path {
+  display: block;
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+  word-break: break-all;
 }
 
 .graph-panel-risk {
@@ -2289,4 +2360,4 @@ tr.row-critical td:first-child {
   font-family: ui-monospace, monospace;
   word-break: break-all;
   color: var(--text) !important;
-}
+}
