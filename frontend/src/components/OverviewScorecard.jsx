@@ -94,9 +94,6 @@ export default function OverviewScorecard({
 
   const failureRisk = currentJob?.avg_failure_risk || 0;
   const prevFailureRisk = previousJob?.avg_failure_risk || 0;
-
-  const burnoutSignal = currentJob?.burnout_score || 0;
-  const prevBurnoutSignal = previousJob?.burnout_score || 0;
   
   const prevAvgDebt = previousJob?.avg_debt_score || avgDebt;
   const prevHighDebtRoi = previousJob?.high_risk_roi || highDebtRoi;
@@ -139,16 +136,6 @@ export default function OverviewScorecard({
       label: withScore.length ? avgDebt.toFixed(0) : "—",
       color: withScore.length ? getDebtColor(avgDebt) : "#64748b",
       trend: withScore.length ? renderTrendArrow(avgDebt, prevAvgDebt, true) : null,
-    },
-    {
-      id: "teamhealth",
-      title: "Burnout Signal",
-      hint: "Burnout radar cohort-level classification.",
-      value: burnoutSignal,
-      percentage: burnoutSignal,
-      label: `${(burnoutSignal * 100).toFixed(0)}%`,
-      color: getRiskColor(burnoutSignal),
-      trend: renderTrendArrow(burnoutSignal, prevBurnoutSignal, true)
     },
     {
       id: "fixes",

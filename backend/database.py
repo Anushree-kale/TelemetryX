@@ -108,16 +108,6 @@ CREATE TABLE IF NOT EXISTS failure_predictions (
     predicted_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS burnout_assessments (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER UNIQUE REFERENCES analysis_jobs(id) ON DELETE CASCADE,
-    risk_level TEXT NOT NULL,
-    risk_score FLOAT NOT NULL,
-    top_drivers JSONB NOT NULL,
-    metrics JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS api_keys (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -166,16 +156,6 @@ CREATE TABLE IF NOT EXISTS failure_predictions (
     risk_score FLOAT NOT NULL,
     risk_level TEXT NOT NULL,
     predicted_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS burnout_assessments (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER UNIQUE REFERENCES analysis_jobs(id) ON DELETE CASCADE,
-    risk_level TEXT NOT NULL,
-    risk_score FLOAT NOT NULL,
-    top_drivers JSONB NOT NULL,
-    metrics JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -730,7 +710,6 @@ def get_repo_jobs_history(repo_url: str) -> list[dict[str, Any]]:
                    COALESCE(AVG(m.test_coverage_ratio), 0) AS avg_test_coverage,
                    COUNT(m.id) AS file_count,
                    COALESCE((SELECT AVG(risk_score) FROM failure_predictions WHERE job_id = j.id), 0) AS avg_failure_risk,
-                   COALESCE((SELECT risk_score FROM burnout_assessments WHERE job_id = j.id), 0) AS burnout_score,
                    COALESCE(SUM(CASE WHEN m.risk_level = 'high' THEN m.roi_days ELSE 0 END), 0) AS high_risk_roi
             FROM analysis_jobs j
             LEFT JOIN module_metrics m ON m.job_id = j.id
@@ -753,7 +732,6 @@ def get_repo_jobs_history(repo_url: str) -> list[dict[str, Any]]:
         row_dict["avg_test_coverage"] = float(row_dict["avg_test_coverage"])
         row_dict["file_count"] = int(row_dict["file_count"])
         row_dict["avg_failure_risk"] = float(row_dict["avg_failure_risk"])
-        row_dict["burnout_score"] = float(row_dict["burnout_score"])
         row_dict["high_risk_roi"] = float(row_dict["high_risk_roi"])
         row_dict["privacy_mode"] = bool(row_dict["privacy_mode"])
         result.append(row_dict)
@@ -937,87 +915,6 @@ def get_job_modules_raw(job_id: int) -> list[dict[str, Any]]:
             (job_id,),
         )
         return [dict(row) for row in cur.fetchall()]
-
-
-def get_burnout_cohort_metrics(job_id: int) -> dict[str, float]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT 
-                COALESCE(AVG(top_author_pct), 0) AS top_author_pct,
-                COALESCE(AVG(bug_fix_ratio), 0) AS bug_fix_ratio,
-                COALESCE(AVG(days_since_last_commit), 0) AS days_since_last_commit,
-                COALESCE(AVG(unique_author_count), 0) AS unique_author_count
-            FROM module_metrics
-            WHERE job_id = %s
-            """,
-            (job_id,),
-        )
-        row = cur.fetchone()
-        if row:
-            return {
-                "top_author_pct": float(row["top_author_pct"]),
-                "bug_fix_ratio": float(row["bug_fix_ratio"]),
-                "days_since_last_commit": float(row["days_since_last_commit"]),
-                "unique_author_count": float(row["unique_author_count"]),
-            }
-        return {
-            "top_author_pct": 0.0,
-            "bug_fix_ratio": 0.0,
-            "days_since_last_commit": 0.0,
-            "unique_author_count": 0.0,
-        }
-
-
-def insert_burnout_assessment(
-    job_id: int,
-    risk_level: str,
-    risk_score: float,
-    top_drivers: list[dict[str, Any]],
-    metrics: dict[str, float]
-) -> None:
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO burnout_assessments (job_id, risk_level, risk_score, top_drivers, metrics)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (job_id) DO UPDATE SET
-                risk_level = EXCLUDED.risk_level,
-                risk_score = EXCLUDED.risk_score,
-                top_drivers = EXCLUDED.top_drivers,
-                metrics = EXCLUDED.metrics
-            """,
-            (
-                job_id,
-                risk_level,
-                risk_score,
-                json.dumps(top_drivers),
-                json.dumps(metrics),
-            ),
-        )
-
-
-def get_burnout_assessment(job_id: int) -> dict[str, Any] | None:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, job_id, risk_level, risk_score, top_drivers, metrics, created_at
-            FROM burnout_assessments
-            WHERE job_id = %s
-            """,
-            (job_id,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        res = dict(row)
-        if isinstance(res["top_drivers"], str):
-            res["top_drivers"] = json.loads(res["top_drivers"])
-        if isinstance(res["metrics"], str):
-            res["metrics"] = json.loads(res["metrics"])
-        if res["created_at"]:
-            res["created_at"] = res["created_at"].isoformat()
-        return res
 
 
 def create_api_key_record(

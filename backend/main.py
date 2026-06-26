@@ -158,34 +158,6 @@ def get_results(job_id: int):
     }
 
 
-@app.get("/jobs/{job_id}/burnout")
-def get_burnout_assessment(job_id: int):
-    job = database.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    assessment = database.get_burnout_assessment(job_id)
-    if not assessment:
-        return {"status": "pending", "job_id": job_id}
-
-    import burnout_model
-
-    metrics = assessment["metrics"]
-    provenance = burnout_model.get_model_provenance()
-
-    return {
-        "status": "complete",
-        "job_id": job_id,
-        "risk_level": assessment["risk_level"],
-        "risk_score": assessment["risk_score"],
-        "heuristic_score": burnout_model.heuristic_burnout_score(metrics),
-        "top_drivers": assessment["top_drivers"],
-        "metrics": metrics,
-        "created_at": assessment["created_at"],
-        "model_info": provenance,
-    }
-
-
 @app.get("/modules")
 def list_modules():
     return {"modules": database.get_all_modules()}
@@ -212,18 +184,6 @@ def retrain_model(admin_key: str = Depends(get_admin_key)):
         "status": "ok",
         "message": f"Model retrained on {len(rows)} modules",
         "model_path": str(scorer.model is not None),
-    }
-
-
-@app.post("/model/retrain-burnout")
-def retrain_burnout_model(admin_key: str = Depends(get_admin_key)):
-    import burnout_model
-
-    _, provenance = burnout_model.retrain_burnout_model()
-    return {
-        "status": "ok",
-        "message": "Burnout model retrained",
-        "model_info": provenance,
     }
 
 

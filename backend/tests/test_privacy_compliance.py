@@ -80,7 +80,6 @@ def test_time_series_lstm_synthesizer():
             "avg_test_coverage": 0.4 + i * 0.01,
             "high_risk_count": i,
             "file_count": 20 + i,
-            "burnout_score": 0.15 + i * 0.01,
         }
         for i in range(12)
     ]
@@ -101,7 +100,6 @@ def test_timegan_time_series_synthesizer():
             "avg_test_coverage": 0.4 + i * 0.01,
             "high_risk_count": i,
             "file_count": 20 + i,
-            "burnout_score": 0.15 + i * 0.01,
         }
         for i in range(12)
     ]

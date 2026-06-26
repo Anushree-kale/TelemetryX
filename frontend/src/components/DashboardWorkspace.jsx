@@ -14,7 +14,6 @@ import OverviewScorecard from "./OverviewScorecard";
 import TopDebtModules from "./TopDebtModules";
 import PanelPager from "./PanelPager";
 import ResultsOverviewBanner from "./ResultsOverviewBanner";
-import TeamHealthTab from "./TeamHealthTab";
 import PrivacyTab from "./PrivacyTab";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
@@ -305,20 +304,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
                   </SectionHint>
                 </div>
                 <FailureRiskTab jobId={jobId} apiBase={apiBase} />
-              </div>
-            )}
-
-            {activePanel === "teamhealth" && jobId && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Team health</h2>
-                  <SectionHint label="Team health">
-                    <p>
-                      Burnout Radar (XGBoost) on git-derived cohort metrics. Default weights are synthetic-trained; optional labeled validation CSV improves credibility.
-                    </p>
-                  </SectionHint>
-                </div>
-                <TeamHealthTab jobId={jobId} apiBase={apiBase} />
               </div>
             )}
 

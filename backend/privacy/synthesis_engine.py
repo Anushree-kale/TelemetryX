@@ -89,13 +89,12 @@ DEFAULT_SEQUENCE_COLUMNS = [
     "avg_test_coverage",
     "file_count",
     "avg_failure_risk",
-    "burnout_score",
     "high_risk_roi",
 ]
 
 INTEGER_LIKE_COLUMNS = frozenset({"lines_of_code", "churn_90d", "file_count", "high_risk_count"})
 UNIT_INTERVAL_COLUMNS = frozenset(
-    {"bug_fix_ratio", "avg_test_coverage", "avg_failure_risk", "burnout_score"}
+    {"bug_fix_ratio", "avg_test_coverage", "avg_failure_risk"}
 )
 
 

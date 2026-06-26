@@ -45,13 +45,7 @@ export default function DeveloperTools({ apiBase }) {
         const msg = Array.isArray(d) ? d.map((x) => x.msg).join(", ") : d || res.statusText;
         throw new Error(msg);
       }
-      const extra =
-        body.model_info?.training_source === "labeled_validation"
-          ? " (burnout: labeled validation set)"
-          : body.model_info?.training_source === "synthetic"
-            ? " (burnout: synthetic fallback)"
-            : "";
-      setRetrainMsg(`✓ ${body.message || successLabel}${extra}`);
+      setRetrainMsg(`✓ ${body.message || successLabel}`);
       loadStatus();
     } catch (err) {
       setRetrainMsg(`✗ ${err.message}`);
@@ -63,11 +57,6 @@ export default function DeveloperTools({ apiBase }) {
   const retrain = (e) => {
     e.preventDefault();
     retrainEndpoint("/model/retrain", "Retrain complete.");
-  };
-
-  const retrainBurnout = (e) => {
-    e.preventDefault();
-    retrainEndpoint("/model/retrain-burnout", "Burnout retrain complete.");
   };
 
   const saveApiKey = (e) => {
@@ -246,8 +235,7 @@ export default function DeveloperTools({ apiBase }) {
                 autoComplete="off"
               />
             </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-              <button
+            <button
                 type="submit"
                 className="btn-primary"
                 disabled={retrainBusy || !canRetrain}
@@ -255,15 +243,6 @@ export default function DeveloperTools({ apiBase }) {
               >
                 {retrainBusy ? "Retraining…" : "Retrain debt model"}
               </button>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={retrainBusy}
-                onClick={retrainBurnout}
-              >
-                {retrainBusy ? "Retraining…" : "Retrain burnout model"}
-              </button>
-            </div>
           </form>
 
           {retrainMsg && (
