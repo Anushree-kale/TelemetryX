@@ -303,7 +303,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
                     </p>
                   </SectionHint>
                 </div>
-                <FailureRiskTab jobId={jobId} apiBase={apiBase} />
+                <FailureRiskTab jobId={jobId} apiBase={apiBase} modules={modules} />
               </div>
             )}
 

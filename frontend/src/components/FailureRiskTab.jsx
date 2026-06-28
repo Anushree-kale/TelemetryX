@@ -10,6 +10,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import PanelPager from "./PanelPager";
+import ModuleDetailDrawer from "./ModuleDetailDrawer";
 
 const POLL_INTERVAL_MS = 2000;
 const ROWS_PER_PAGE = 18;
@@ -60,13 +61,23 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-export default function FailureRiskTab({ jobId, apiBase }) {
+export default function FailureRiskTab({ jobId, apiBase, modules = [] }) {
   const [predictions, setPredictions] = useState([]);
   const [status, setStatus] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortKey, setSortKey] = useState("risk_score");
   const [sortDir, setSortDir] = useState("desc");
+  const [selectedModule, setSelectedModule] = useState(null);
+
+  const handleSelectFile = (filePath) => {
+    const found = modules.find((m) => m.file_path === filePath);
+    if (found) {
+      setSelectedModule(found);
+    } else {
+      console.warn(`Module not found for path: ${filePath}`);
+    }
+  };
 
   useEffect(() => {
     let timerId = null;
@@ -239,7 +250,12 @@ export default function FailureRiskTab({ jobId, apiBase }) {
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="riskScore" radius={[0, 4, 4, 0]} barSize={16}>
               {topRiskData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getRiskColor(entry.riskScore)} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={getRiskColor(entry.riskScore)}
+                  onClick={() => handleSelectFile(entry.fullPath)}
+                  style={{ cursor: "pointer" }}
+                />
               ))}
             </Bar>
           </BarChart>
@@ -274,7 +290,18 @@ export default function FailureRiskTab({ jobId, apiBase }) {
             </thead>
             <tbody>
               {slice.map((p) => (
-                <tr key={p.id || p.module_id}>
+                <tr
+                  key={p.id || p.module_id}
+                  onClick={() => handleSelectFile(p.file_path)}
+                  style={{ cursor: "pointer" }}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectFile(p.file_path);
+                    }
+                  }}
+                >
                   <td>
                     <span className="failure-risk-path">
                       {p.file_path}
@@ -316,10 +343,13 @@ export default function FailureRiskTab({ jobId, apiBase }) {
   const allPages = [chartPage, ...tablePages];
 
   return (
-    <PanelPager
-      pages={allPages}
-      resetKey={`failure-risk-${jobId}`}
-      ariaLabel="Failure risk analysis pages"
-    />
+    <>
+      <PanelPager
+        pages={allPages}
+        resetKey={`failure-risk-${jobId}`}
+        ariaLabel="Failure risk analysis pages"
+      />
+      <ModuleDetailDrawer module={selectedModule} onClose={() => setSelectedModule(null)} />
+    </>
   );
 }
