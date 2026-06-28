@@ -9,7 +9,6 @@
   letter-spacing: -0.04em;
   line-height: 0.95;
   color: #fff;
-  text-transform: lowercase;
 }
 
 .brand-title--lg {
@@ -46,23 +45,28 @@
 .video-bg__overlay {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+}
+
+/* Home — video visible, light vignette for title legibility */
+.video-bg--home .video-bg__overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(8, 8, 10, 0.42) 0%,
+    rgba(8, 8, 10, 0.18) 35%,
+    rgba(8, 8, 10, 0.45) 100%
+  );
+}
+
+/* Default / auth — darker when blurred */
+.video-bg--default .video-bg__overlay,
+.video-bg--auth .video-bg__overlay {
   background: linear-gradient(
     180deg,
     rgba(10, 10, 10, 0.35) 0%,
     rgba(10, 10, 10, 0.55) 50%,
     rgba(10, 10, 10, 0.75) 100%
   );
-  pointer-events: none;
-}
-
-.video-bg--blurred .video-bg__media {
-  filter: blur(14px);
-  transform: scale(1.06);
-}
-
-.video-bg--blurred .video-bg__overlay {
-  background: rgba(10, 10, 10, 0.62);
-  backdrop-filter: blur(2px);
 }
 
 /* Landing */
@@ -78,6 +82,24 @@
 .landing-hero {
   position: relative;
   z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.landing-hero__title {
+  display: flex;
+  justify-content: center;
+  padding: clamp(2.5rem, 8vh, 4.5rem) 1.5rem 0;
+  text-align: center;
+}
+
+.landing-hero__title .brand-title {
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.55);
+}
+
+.landing-hero__body {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -129,57 +151,20 @@
   box-shadow: none;
 }
 
-/* Auth page */
-.auth-page__home-link {
-  text-decoration: none;
-  color: inherit;
-}
-
-.auth-page__top {
-  position: relative;
-  z-index: 2;
-  display: flex;
+/* Auth page — blurred video only, login box centered */
+.auth-page {
   align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-}
-
-.auth-page__github {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
-  background: rgba(20, 20, 22, 0.55);
-  backdrop-filter: blur(8px);
-  color: #f5f5f7;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.auth-page__github:hover {
-  background: rgba(30, 30, 34, 0.75);
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-.auth-page__github svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
+  justify-content: center;
 }
 
 .auth-page__main {
   position: relative;
   z-index: 1;
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem 1.25rem 3rem;
+  width: 100%;
+  padding: 1.5rem;
 }
 
 .auth-box {
@@ -440,56 +425,16 @@
     top: -34px;
     right: 12px;
   }
-
-  .auth-page__top {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
 }
 
-/* ── Auth page hero text overlaid on blurred video ──────────────────────── */
-.auth-page__hero-text {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 0 0 3.5rem 3.5rem;
-  pointer-events: none;
-}
-
-.auth-page__hero-line {
-  display: block;
-  font-family: "Bodoni Moda", "Didot", "Bodoni MT", Georgia, serif;
-  font-size: clamp(2.8rem, 6.5vw, 5.5rem);
-  font-weight: 700;
-  line-height: 1.05;
-  color: rgba(255, 255, 255, 0.15);
-  letter-spacing: -0.03em;
-  user-select: none;
-}
-
-.auth-page__hero-line--accent {
-  color: rgba(224, 122, 74, 0.25);
-  font-style: italic;
-}
-
-/* Stronger blur for auth page (overrides base) */
 .video-bg--blurred .video-bg__media {
-  filter: blur(20px) saturate(1.15);
+  filter: blur(20px) saturate(1.1);
   transform: scale(1.08);
 }
 
-.video-bg--blurred .video-bg__overlay {
-  background: linear-gradient(
-    160deg,
-    rgba(8, 8, 10, 0.75) 0%,
-    rgba(8, 8, 10, 0.58) 50%,
-    rgba(8, 8, 10, 0.80) 100%
-  );
-  backdrop-filter: blur(4px);
+.video-bg--blurred.video-bg--auth .video-bg__overlay {
+  background: rgba(8, 8, 10, 0.55);
+  backdrop-filter: blur(2px);
 }
 
 /* ── OAuth callback loading / error page ────────────────────────────────── */
@@ -562,14 +507,6 @@
 }
 
 @media (max-width: 480px) {
-  .auth-page__hero-text {
-    padding: 0 0 2rem 1.5rem;
-  }
-
-  .auth-page__hero-line {
-    font-size: clamp(1.9rem, 9vw, 2.6rem);
-  }
-
   .oauth-callback-box {
     padding: 2rem 1.75rem;
     margin: 1rem;

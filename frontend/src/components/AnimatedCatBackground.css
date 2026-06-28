@@ -1,193 +1,343 @@
-.cat-bg {
+/* Sky + grass field with running cat chase */
+
+.field-scene {
+  position: relative;
+  width: min(100%, 920px);
+  height: clamp(200px, 32vw, 300px);
+  margin: 1.5rem auto 0;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* ── Sky ─────────────────────────────────────────────────────────────────── */
+.field-sky {
+  position: absolute;
+  inset: 0 0 38%;
+  overflow: hidden;
+}
+
+.field-sky__gradient {
   position: absolute;
   inset: 0;
+  background: linear-gradient(180deg, #5eb8f0 0%, #8fd4f8 55%, #b8e8c4 100%);
+}
+
+.field-clouds {
+  position: absolute;
+  inset: 0;
+  width: 200%;
+}
+
+.field-clouds__svg {
+  width: 100%;
+  height: 100%;
+}
+
+.field-clouds--slow {
+  animation: clouds-drift 48s linear infinite;
+  opacity: 0.92;
+}
+
+.field-clouds--fast {
+  top: 8%;
+  height: 55%;
+  animation: clouds-drift 28s linear infinite reverse;
+  opacity: 0.55;
+}
+
+@keyframes clouds-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── Ground ──────────────────────────────────────────────────────────────── */
+.field-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  background: linear-gradient(180deg, #6fbf5c 0%, #4a9e42 45%, #3d8a38 100%);
   overflow: hidden;
-  background: linear-gradient(to bottom, #08080a 0%, #151821 100%);
-  z-index: 0;
+}
+
+.field-hill {
+  position: absolute;
+  top: -28px;
+  left: -10%;
+  right: -10%;
+  height: 56px;
+  background: radial-gradient(ellipse 55% 100% at 50% 100%, #7ecf6a 0%, #5cb052 70%, transparent 71%);
+}
+
+.field-grass {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.field-grass--far {
+  height: 36px;
+  opacity: 0.65;
+}
+
+.field-grass--near {
+  height: 52px;
+}
+
+.field-grass__track {
+  width: 200%;
+  height: 100%;
+  display: block;
+}
+
+.field-grass--far .field-grass__track {
+  animation: grass-scroll 5.5s linear infinite;
+}
+
+.field-grass--near .field-grass__track {
+  animation: grass-scroll 3.2s linear infinite;
+}
+
+@keyframes grass-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── Cat chase ───────────────────────────────────────────────────────────── */
+.field-chase {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
 }
 
-.cat-bg__sky {
+.field-chase__svg {
   position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.star {
-  position: absolute;
-  background: #fff;
-  border-radius: 50%;
-  animation: twinkle 4s infinite alternate;
-  opacity: 0.3;
-}
-
-.star-1 { width: 3px; height: 3px; top: 15%; left: 20%; animation-delay: 0s; }
-.star-2 { width: 2px; height: 2px; top: 25%; left: 60%; animation-delay: 1s; }
-.star-3 { width: 4px; height: 4px; top: 10%; left: 80%; animation-delay: 2s; }
-.star-4 { width: 2px; height: 2px; top: 45%; left: 15%; animation-delay: 0.5s; }
-.star-5 { width: 3px; height: 3px; top: 35%; left: 75%; animation-delay: 1.5s; }
-
-@keyframes twinkle {
-  0% { opacity: 0.2; transform: scale(0.8); }
-  100% { opacity: 0.8; transform: scale(1.2); box-shadow: 0 0 8px rgba(255, 255, 255, 0.4); }
-}
-
-.cat-bg__hills {
-  position: absolute;
-  bottom: 0;
+  bottom: 18%;
   left: 0;
-  right: 0;
-  height: 40vh;
-  z-index: 2;
+  width: 130px;
+  height: 110px;
+  overflow: visible;
+  animation: cat-chase-run 7s linear infinite;
 }
 
-.hill {
-  position: absolute;
-  bottom: -50px;
-  border-radius: 50% 50% 0 0;
+@keyframes cat-chase-run {
+  0% {
+    left: -8%;
+    transform: translateY(0);
+  }
+  12% {
+    transform: translateY(-2px);
+  }
+  24% {
+    transform: translateY(0);
+  }
+  36% {
+    transform: translateY(-3px);
+  }
+  48% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+  72% {
+    transform: translateY(0);
+  }
+  82% {
+    left: 72%;
+    transform: translateY(-14px) scale(1.05);
+  }
+  88% {
+    left: 78%;
+    transform: translateY(-6px) scale(1);
+  }
+  92% {
+    left: 80%;
+    transform: translateY(0);
+  }
+  100% {
+    left: 108%;
+    transform: translateY(0);
+  }
 }
 
-.hill-back {
-  left: -10%;
-  right: -10%;
-  height: 250px;
-  background: #11141c;
-  z-index: 1;
+.field-chase__butterfly-wrap {
+  transform: translate(58px, -42px);
+  animation: butterfly-flee 7s linear infinite;
 }
 
-.hill-front {
-  left: -20%;
-  right: -20%;
-  height: 180px;
-  background: #0d1016;
-  z-index: 2;
+@keyframes butterfly-flee {
+  0% {
+    transform: translate(58px, -42px);
+    opacity: 1;
+  }
+  78% {
+    transform: translate(72px, -48px);
+    opacity: 1;
+  }
+  84% {
+    transform: translate(74px, -44px) scale(0.6);
+    opacity: 0;
+  }
+  85% {
+    transform: translate(58px, -42px) scale(1);
+    opacity: 0;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(58px, -42px);
+    opacity: 1;
+  }
 }
 
-.cat-bg__grass-foreground {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(to top, #080a0f, transparent);
-  z-index: 5;
+.field-butterfly__wings {
+  transform-origin: 0 8px;
+  animation: butterfly-flap 0.18s ease-in-out infinite alternate;
 }
 
-/* Realistic running leg animation */
-.cat-runner-wrapper {
-  position: absolute;
-  bottom: 30px; /* Bring it down so feet touch the grass */
-  left: -150px;
-  z-index: 6; /* Bring in front of grass foreground for better visibility */
-  width: 150px;
-  animation: run-across 12s linear infinite;
+@keyframes butterfly-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.55);
+  }
 }
 
-.cat-runner-bounce {
-  animation: cat-run-bounce 0.35s ease-in-out infinite alternate;
-}
-
-.cat-runner {
-  width: 100%;
-  height: auto;
-  transform: scale(1.2);
-  transform-origin: bottom center;
-}
-
-@keyframes run-across {
-  0% { transform: translateX(-150px); }
-  100% { transform: translateX(calc(100vw + 150px)); }
-}
-
-@keyframes cat-run-bounce {
-  from { transform: translateY(0); }
-  to { transform: translateY(-15px); }
-}
-
-.cat-runner .cat-leg-1 {
-  transform-origin: 44px 72px;
-  animation: run-leg-back 0.3s ease-in-out infinite !important;
-}
-
-.cat-runner .cat-leg-2 {
-  transform-origin: 58px 74px;
-  animation: run-leg-back 0.3s ease-in-out infinite -0.15s !important;
-}
-
-.cat-runner .cat-leg-3 {
-  transform-origin: 68px 72px;
-  animation: run-leg-front 0.3s ease-in-out infinite !important;
-}
-
-.cat-runner .cat-leg-4 {
-  transform-origin: 78px 74px;
-  animation: run-leg-front 0.3s ease-in-out infinite -0.15s !important;
-}
-
-@keyframes run-leg-front {
-  0%, 100% { transform: rotate(-25deg); }
-  50% { transform: rotate(35deg); }
-}
-
-@keyframes run-leg-back {
-  0%, 100% { transform: rotate(45deg); }
-  50% { transform: rotate(-20deg); }
-}
-
-/* Add a body stretch/squeeze for more realism */
-.cat-runner .orange-cat-svg {
-  transform-origin: 58px 62px;
-  animation: cat-body-run 0.15s ease-in-out infinite alternate;
-}
-
-@keyframes cat-body-run {
-  from { transform: scaleY(0.95) scaleX(1.05); }
-  to { transform: scaleY(1.02) scaleX(0.98); }
-}
-
-/* ── Butterfly ───────────────────────────────────────────────────────────── */
-.butterfly-wrapper {
-  position: absolute;
-  bottom: 180px;
-  left: -50px;
-  width: 30px;
-  height: 30px;
-  z-index: 4;
-  /* Same horizontal speed, slightly ahead of cat */
-  animation: 
-    butterfly-fly-across 12s linear infinite,
-    butterfly-bob 2s ease-in-out infinite alternate;
-}
-
-@keyframes butterfly-fly-across {
-  0% { transform: translateX(-150px); }
-  100% { transform: translateX(calc(100vw + 250px)); }
+.field-butterfly {
+  animation: butterfly-bob 1.4s ease-in-out infinite alternate;
 }
 
 @keyframes butterfly-bob {
-  0% { margin-bottom: 0; }
-  50% { margin-bottom: 60px; }
-  100% { margin-bottom: 20px; }
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
 }
 
-.butterfly-wings .wing-left,
-.butterfly-wings .wing-left-bottom {
-  transform-origin: 50% 50%;
-  animation: flap-left 0.15s infinite alternate;
+/* Cat run cycle */
+.field-cat__body {
+  animation: cat-body-bob 0.28s ease-in-out infinite alternate;
 }
 
-.butterfly-wings .wing-right,
-.butterfly-wings .wing-right-bottom {
-  transform-origin: 50% 50%;
-  animation: flap-right 0.15s infinite alternate;
+@keyframes cat-body-bob {
+  from {
+    transform: translateY(0) rotate(-2deg);
+  }
+  to {
+    transform: translateY(-5px) rotate(1deg);
+  }
 }
 
-@keyframes flap-left {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0.2); }
+.field-cat__leg--back {
+  transform-origin: -18px 18px;
+  animation: leg-back 0.28s ease-in-out infinite alternate;
 }
 
-@keyframes flap-right {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0.2); }
+.field-cat__leg--front {
+  transform-origin: 22px 20px;
+  animation: leg-front 0.28s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes leg-back {
+  from {
+    transform: rotate(-18deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes leg-front {
+  from {
+    transform: rotate(12deg);
+  }
+  to {
+    transform: rotate(-16deg);
+  }
+}
+
+.field-cat__shadow {
+  animation: shadow-run 0.28s ease-in-out infinite alternate;
+}
+
+@keyframes shadow-run {
+  from {
+    transform: scaleX(1);
+    opacity: 0.22;
+  }
+  to {
+    transform: scaleX(0.82);
+    opacity: 0.12;
+  }
+}
+
+/* ── Landing page overrides (sky behind hero text) ─────────────────────────── */
+.landing-page--field {
+  background: linear-gradient(180deg, #4aaee8 0%, #7ecbf5 28%, #1a1a1e 28%, #141416 100%);
+}
+
+.landing-page--field .landing-hero {
+  padding-top: 3rem;
+}
+
+.landing-page--field .brand-title {
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 40, 80, 0.35);
+}
+
+.landing-page--field .landing-tagline {
+  color: rgba(245, 245, 247, 0.82);
+}
+
+@media (max-width: 600px) {
+  .field-scene {
+    width: calc(100% - 1.5rem);
+    margin-top: 1.25rem;
+    border-radius: 14px;
+  }
+
+  .field-chase__svg {
+    width: 100px;
+    height: 88px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-clouds--slow,
+  .field-clouds--fast,
+  .field-grass--far .field-grass__track,
+  .field-grass--near .field-grass__track,
+  .field-chase__svg,
+  .field-chase__butterfly-wrap,
+  .field-butterfly__wings,
+  .field-butterfly,
+  .field-cat__body,
+  .field-cat__leg--back,
+  .field-cat__leg--front,
+  .field-cat__shadow {
+    animation: none !important;
+  }
+
+  .field-chase__svg {
+    left: 35%;
+  }
 }

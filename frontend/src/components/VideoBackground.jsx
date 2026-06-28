@@ -1,9 +1,13 @@
-/** Full-screen looping background video. File must be at frontend/public/videos/bg.mp4 */
+/** Full-screen looping background video. File: frontend/public/videos/bg.mp4 */
 
-export default function VideoBackground({ blurred = false, className = "" }) {
+const DEFAULT_SRC = "/videos/bg.mp4";
+
+export default function VideoBackground({ blurred = false, variant = "default", className = "" }) {
+  const src = import.meta.env.VITE_BG_VIDEO_URL || DEFAULT_SRC;
+
   return (
     <div
-      className={`video-bg ${blurred ? "video-bg--blurred" : ""} ${className}`.trim()}
+      className={`video-bg video-bg--${variant} ${blurred ? "video-bg--blurred" : ""} ${className}`.trim()}
       aria-hidden
     >
       <video
@@ -14,8 +18,7 @@ export default function VideoBackground({ blurred = false, className = "" }) {
         playsInline
         preload="auto"
       >
-        {/* Hardcoded path — Vite serves /public directly at the root */}
-        <source src="/videos/bg.mp4" type="video/mp4" />
+        <source src={src} type="video/mp4" />
       </video>
       <div className="video-bg__overlay" />
     </div>

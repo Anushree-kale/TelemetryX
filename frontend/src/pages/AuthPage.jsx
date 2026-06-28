@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   loginWithCredentials,
   loginWithGitHub,
@@ -27,7 +27,6 @@ export default function AuthPage({ mode = "login" }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isHoveringBox, setIsHoveringBox] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
 
   // Surface errors bounced back from OAuth redirect (e.g. ?error=github_denied)
@@ -80,37 +79,10 @@ export default function AuthPage({ mode = "login" }) {
 
   return (
     <div className="auth-page">
-      <VideoBackground blurred />
-
-      {/* Large ambient text overlaid on the blurred video */}
-      <div className="auth-page__hero-text" aria-hidden>
-        <span className="auth-page__hero-line">Code health,</span>
-        <span className="auth-page__hero-line auth-page__hero-line--accent">
-          made visible.
-        </span>
-      </div>
-
-      <header className="auth-page__top">
-        <Link to="/" className="auth-page__home-link">
-          <BrandTitle size="md" />
-        </Link>
-        <button
-          type="button"
-          className="auth-page__github"
-          onClick={handleGitHub}
-          disabled={githubLoading}
-        >
-          <GitHubIcon />
-          {githubLoading ? "Redirecting…" : "Sign in with GitHub"}
-        </button>
-      </header>
+      <VideoBackground blurred variant="auth" />
 
       <main className="auth-page__main">
-        <div
-          className="auth-box"
-          onMouseEnter={() => setIsHoveringBox(true)}
-          onMouseLeave={() => setIsHoveringBox(false)}
-        >
+        <div className="auth-box">
           <div className="auth-box__cat">
             <OrangeCat variant="sitting" mood={catMood} />
           </div>

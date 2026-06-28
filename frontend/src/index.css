@@ -11,6 +11,7 @@ body {
   background: #0f1419;
   color: #e7ecf3;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 #root {
@@ -25,7 +26,6 @@ body {
 .oauth-callback-page {
   margin: -2rem -1.5rem;
   max-width: none;
-  width: calc(100% + 3rem);
 }
 
 h1 {
