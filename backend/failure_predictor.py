@@ -3,6 +3,7 @@ import os
 from typing import Any
 
 import database
+import failure_explainer
 
 logger = logging.getLogger(__name__)
 
@@ -243,12 +244,17 @@ def predict_failures(job_id: int) -> None:
         else:
             risk_level = "low"
 
+        explanation = failure_explainer.explain_failure_risk(
+            m, round(risk_score, 4), history=history or None
+        )
+
         predictions.append(
             {
                 "module_id": module_id,
                 "file_path": file_path,
                 "risk_score": round(risk_score, 4),
                 "risk_level": risk_level,
+                "failure_explanation": explanation,
             }
         )
 

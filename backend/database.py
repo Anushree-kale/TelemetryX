@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS failure_predictions (
     file_path TEXT NOT NULL,
     risk_score FLOAT NOT NULL,
     risk_level TEXT NOT NULL,
+    failure_explanation JSONB,
     predicted_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -149,6 +150,7 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT 
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'unknown';
 ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS privacy_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE failure_predictions ADD COLUMN IF NOT EXISTS failure_explanation JSONB;
 
 CREATE TABLE IF NOT EXISTS failure_predictions (
     id SERIAL PRIMARY KEY,
@@ -157,6 +159,7 @@ CREATE TABLE IF NOT EXISTS failure_predictions (
     file_path TEXT NOT NULL,
     risk_score FLOAT NOT NULL,
     risk_level TEXT NOT NULL,
+    failure_explanation JSONB,
     predicted_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -798,10 +801,14 @@ def insert_failure_predictions(
             cur,
             """
             INSERT INTO failure_predictions
-                (job_id, module_id, file_path, risk_score, risk_level)
-            VALUES (%(job_id)s, %(module_id)s, %(file_path)s, %(risk_score)s, %(risk_level)s)
+                (job_id, module_id, file_path, risk_score, risk_level, failure_explanation)
+            VALUES (%(job_id)s, %(module_id)s, %(file_path)s, %(risk_score)s, %(risk_level)s, %(failure_explanation)s)
             """,
-            [{**p, "job_id": job_id} for p in predictions],
+            [{
+                **p,
+                "job_id": job_id,
+                "failure_explanation": json.dumps(p.get("failure_explanation", []))
+            } for p in predictions],
         )
 
 
@@ -809,14 +816,45 @@ def get_job_failure_predictions(job_id: int) -> list[dict[str, Any]]:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
             """
-            SELECT id, job_id, module_id, file_path, risk_score, risk_level, predicted_at
+            SELECT id, job_id, module_id, file_path, risk_score, risk_level, failure_explanation, predicted_at
             FROM failure_predictions
             WHERE job_id = %s
             ORDER BY risk_score DESC
             """,
             (job_id,),
         )
-        return [dict(row) for row in cur.fetchall()]
+        predictions = []
+        for row in cur.fetchall():
+            d = dict(row)
+            if d.get("failure_explanation") and isinstance(d["failure_explanation"], str):
+                try:
+                    d["failure_explanation"] = json.loads(d["failure_explanation"])
+                except Exception:
+                    pass
+            predictions.append(d)
+        return predictions
+
+
+def get_failure_prediction_explanation(job_id: int, module_id: int) -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, job_id, module_id, file_path, risk_score, risk_level, failure_explanation, predicted_at
+            FROM failure_predictions
+            WHERE job_id = %s AND module_id = %s
+            """,
+            (job_id, module_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        if d.get("failure_explanation") and isinstance(d["failure_explanation"], str):
+            try:
+                d["failure_explanation"] = json.loads(d["failure_explanation"])
+            except Exception:
+                pass
+        return d
 
 
 def get_file_metric_history(file_path: str, current_job_id: int) -> list[dict[str, Any]]:

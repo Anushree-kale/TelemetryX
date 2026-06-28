@@ -267,6 +267,26 @@ def get_job_failure_risk(job_id: int):
     }
 
 
+@app.get("/jobs/{job_id}/failure-risk/{module_id}/explain")
+def get_failure_risk_explanation(job_id: int, module_id: int):
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    prediction = database.get_failure_prediction_explanation(job_id, module_id)
+    if not prediction:
+        raise HTTPException(status_code=404, detail="No failure prediction found for this module")
+
+    return {
+        "job_id": job_id,
+        "module_id": module_id,
+        "file_path": prediction["file_path"],
+        "risk_score": prediction["risk_score"],
+        "risk_level": prediction["risk_level"],
+        "explanation": prediction.get("failure_explanation", []),
+    }
+
+
 @app.get("/model/status")
 def get_model_status():
     scorer = get_scorer()
