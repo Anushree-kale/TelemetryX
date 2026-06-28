@@ -24,16 +24,45 @@ def _normalize_step(metrics: dict[str, Any]) -> list[float]:
     churn = float(metrics.get("churn_90d") or 0.0)
     complexity = float(metrics.get("cyclomatic_complexity") or 0.0)
     days = float(metrics.get("days_since_last_commit") or 0.0)
+    test_coverage = float(metrics.get("test_coverage_ratio") or 0.0)
+    fan_out = float(metrics.get("fan_out") or 0.0)
+    function_count = float(metrics.get("function_count") or 0.0)
+    max_fn_complexity = float(metrics.get("max_fn_complexity") or 0.0)
+    unique_authors_30d = float(metrics.get("unique_authors_30d") or 0.0)
+
     return [
         min(churn / 20.0, 1.0),
         min(complexity / 15.0, 1.0),
         max(0.0, 1.0 - (days / 90.0)),
+        1.0 - min(1.0, max(0.0, test_coverage)),
+        min(fan_out / 20.0, 1.0),
+        min(function_count / 50.0, 1.0),
+        min(max_fn_complexity / 15.0, 1.0),
+        min(unique_authors_30d / 5.0, 1.0),
     ]
 
 
 def heuristic_risk_score(metrics: dict[str, Any]) -> float:
-    churn_score, complexity_score, recency_score = _normalize_step(metrics)
-    return (churn_score * 0.45) + (complexity_score * 0.40) + (recency_score * 0.15)
+    scores = _normalize_step(metrics)
+    churn_score = scores[0]
+    complexity_score = scores[1]
+    recency_score = scores[2]
+    coverage_score = scores[3]
+    fan_out_score = scores[4]
+    func_count_score = scores[5]
+    max_fn_comp_score = scores[6]
+    authors_30d_score = scores[7]
+
+    return (
+        (churn_score * 0.25)
+        + (complexity_score * 0.20)
+        + (recency_score * 0.10)
+        + (coverage_score * 0.15)
+        + (fan_out_score * 0.05)
+        + (func_count_score * 0.05)
+        + (max_fn_comp_score * 0.10)
+        + (authors_30d_score * 0.10)
+    )
 
 
 def _history_to_tensor(history: list[dict[str, Any]]) -> "torch.Tensor":
@@ -46,7 +75,7 @@ if TORCH_AVAILABLE:
     class LSTMFailurePredictor(nn.Module):
         def __init__(
             self,
-            input_dim: int = 3,
+            input_dim: int = 8,
             hidden_dim: int = 16,
             output_dim: int = 1,
             num_layers: int = 1,
@@ -71,7 +100,7 @@ if TORCH_AVAILABLE:
             return self.sigmoid(self.fc(last_out))
 
     torch.manual_seed(42)
-    GLOBAL_MODEL = LSTMFailurePredictor(input_dim=3, hidden_dim=16, num_layers=1)
+    GLOBAL_MODEL = LSTMFailurePredictor(input_dim=8, hidden_dim=16, num_layers=1)
     MODEL_TRAINED = False
 else:
     GLOBAL_MODEL = None
@@ -101,7 +130,7 @@ def load_failure_model() -> bool:
 def _pad_batch(sequences: list[list[list[float]]]) -> tuple["torch.Tensor", "torch.Tensor"]:
     max_len = max(len(s) for s in sequences)
     batch_size = len(sequences)
-    padded = torch.zeros(batch_size, max_len, 3, dtype=torch.float32)
+    padded = torch.zeros(batch_size, max_len, 8, dtype=torch.float32)
     lengths = torch.zeros(batch_size, dtype=torch.long)
     for i, seq in enumerate(sequences):
         lengths[i] = len(seq)

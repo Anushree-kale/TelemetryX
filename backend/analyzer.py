@@ -356,6 +356,7 @@ def extract_git_signals(
             results[f] = {
                 "commit_timestamps": [],
                 "unique_author_count": 0,
+                "unique_authors_30d": 0,
                 "top_author_pct": 0.0,
                 "bug_fix_ratio": 0.0,
                 "days_since_last_commit": 999,
@@ -375,6 +376,14 @@ def extract_git_signals(
                 bug_commits_count += 1
 
         unique_author_count = len(set(authors))
+        cutoff_30d = current_time - timedelta(days=30)
+        authors_30d = []
+        for c in commits_for_file:
+            commit_dt = datetime.fromtimestamp(c.committed_date, tz=timezone.utc)
+            if commit_dt >= cutoff_30d:
+                authors_30d.append(c.author.name or "unknown")
+        unique_authors_30d = len(set(authors_30d))
+
         author_freq: dict[str, int] = {}
         for a in authors:
             author_freq[a] = author_freq.get(a, 0) + 1
@@ -402,6 +411,7 @@ def extract_git_signals(
         results[f] = {
             "commit_timestamps": timestamps,
             "unique_author_count": unique_author_count,
+            "unique_authors_30d": unique_authors_30d,
             "top_author_pct": top_author_pct,
             "bug_fix_ratio": bug_fix_ratio,
             "days_since_last_commit": days_since_last_commit,
@@ -539,6 +549,7 @@ def analyze_source_files(
         signals = git_signals.get(rel_path, {
             "commit_timestamps": [],
             "unique_author_count": 0,
+            "unique_authors_30d": 0,
             "top_author_pct": 0.0,
             "bug_fix_ratio": 0.0,
             "days_since_last_commit": 0,
@@ -560,6 +571,7 @@ def analyze_source_files(
                 "test_coverage_ratio": coverage_ratio,
                 "commit_timestamps": signals["commit_timestamps"],
                 "unique_author_count": signals["unique_author_count"],
+                "unique_authors_30d": signals.get("unique_authors_30d", 0),
                 "top_author_pct": signals["top_author_pct"],
                 "bug_fix_ratio": signals["bug_fix_ratio"],
                 "days_since_last_commit": signals["days_since_last_commit"],

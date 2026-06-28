@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS module_metrics (
     imports TEXT DEFAULT '',
     commit_timestamps TEXT DEFAULT '',
     unique_author_count INTEGER DEFAULT 0,
+    unique_authors_30d INTEGER DEFAULT 0,
     top_author_pct FLOAT DEFAULT 0,
     bug_fix_ratio FLOAT DEFAULT 0,
     days_since_last_commit INTEGER DEFAULT 0,
@@ -134,6 +135,7 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS risk_level TEXT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS imports TEXT DEFAULT '';
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS commit_timestamps TEXT DEFAULT '';
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS unique_author_count INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS unique_authors_30d INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS top_author_pct FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS bug_fix_ratio FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS days_since_last_commit INTEGER DEFAULT 0;
@@ -272,18 +274,18 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
         for m in metrics:
             cur.execute(
                 """
-                INSERT INTO module_metrics (
+                 INSERT INTO module_metrics (
                     job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
                     lines_of_code, function_count, churn_90d, test_coverage_ratio,
                     max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
-                    commit_timestamps, unique_author_count, top_author_pct,
+                    commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct,
                     bug_fix_ratio, days_since_last_commit, co_changes
                 ) VALUES (
                     %(job_id)s, %(file_path)s, %(language)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
                     %(churn_90d)s, %(test_coverage_ratio)s, %(max_fn_complexity)s,
                     %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s,
-                    %(commit_timestamps)s, %(unique_author_count)s, %(top_author_pct)s,
+                    %(commit_timestamps)s, %(unique_author_count)s, %(unique_authors_30d)s, %(top_author_pct)s,
                     %(bug_fix_ratio)s, %(days_since_last_commit)s, %(co_changes)s
                 ) RETURNING id
                 """,
@@ -294,6 +296,7 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                     "imports": m.get("imports", ""),
                     "commit_timestamps": json.dumps(m.get("commit_timestamps", [])),
                     "unique_author_count": int(m.get("unique_author_count", 0)),
+                    "unique_authors_30d": int(m.get("unique_authors_30d", 0)),
                     "top_author_pct": float(m.get("top_author_pct", 0.0)),
                     "bug_fix_ratio": float(m.get("bug_fix_ratio", 0.0)),
                     "days_since_last_commit": int(m.get("days_since_last_commit", 0)),
@@ -421,7 +424,7 @@ _MODULE_COLUMNS = """
     id, job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
     lines_of_code, function_count, churn_90d, test_coverage_ratio,
     max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
-    commit_timestamps, unique_author_count, top_author_pct, bug_fix_ratio,
+    commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct, bug_fix_ratio,
     days_since_last_commit, co_changes, in_degree, out_degree, betweenness,
     cluster_id, downstream_count, is_critical, priority_score
 """
@@ -839,8 +842,9 @@ def get_historical_metric_sequences(min_steps: int = 3) -> dict[str, list[dict[s
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
             """
-            SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity,
-                   mm.days_since_last_commit, aj.created_at
+            SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit,
+                   mm.test_coverage_ratio, mm.fan_out, mm.function_count, mm.max_fn_complexity, mm.unique_authors_30d,
+                   aj.created_at
             FROM module_metrics mm
             JOIN analysis_jobs aj ON mm.job_id = aj.id
             WHERE aj.status = 'complete'
@@ -857,6 +861,11 @@ def get_historical_metric_sequences(min_steps: int = 3) -> dict[str, list[dict[s
                 "churn_90d": row["churn_90d"],
                 "cyclomatic_complexity": row["cyclomatic_complexity"],
                 "days_since_last_commit": row["days_since_last_commit"],
+                "test_coverage_ratio": row["test_coverage_ratio"],
+                "fan_out": row["fan_out"],
+                "function_count": row["function_count"],
+                "max_fn_complexity": row["max_fn_complexity"],
+                "unique_authors_30d": row["unique_authors_30d"],
             }
         )
 
@@ -875,6 +884,7 @@ def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> 
             """
             WITH ranked_history AS (
                 SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit,
+                       mm.test_coverage_ratio, mm.fan_out, mm.function_count, mm.max_fn_complexity, mm.unique_authors_30d,
                        ROW_NUMBER() OVER (PARTITION BY mm.file_path ORDER BY aj.created_at DESC) as rk
                 FROM module_metrics mm
                 JOIN analysis_jobs aj ON mm.job_id = aj.id
@@ -882,7 +892,8 @@ def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> 
                   AND aj.status = 'complete' 
                   AND aj.id <= %s
             )
-            SELECT file_path, churn_90d, cyclomatic_complexity, days_since_last_commit
+            SELECT file_path, churn_90d, cyclomatic_complexity, days_since_last_commit,
+                   test_coverage_ratio, fan_out, function_count, max_fn_complexity, unique_authors_30d
             FROM ranked_history
             WHERE rk <= 10
             ORDER BY rk DESC
@@ -899,7 +910,12 @@ def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> 
                 history_by_file[path].append({
                     "churn_90d": row["churn_90d"],
                     "cyclomatic_complexity": row["cyclomatic_complexity"],
-                    "days_since_last_commit": row["days_since_last_commit"]
+                    "days_since_last_commit": row["days_since_last_commit"],
+                    "test_coverage_ratio": row["test_coverage_ratio"],
+                    "fan_out": row["fan_out"],
+                    "function_count": row["function_count"],
+                    "max_fn_complexity": row["max_fn_complexity"],
+                    "unique_authors_30d": row["unique_authors_30d"],
                 })
         return history_by_file
 
@@ -908,7 +924,8 @@ def get_job_modules_raw(job_id: int) -> list[dict[str, Any]]:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(
             """
-            SELECT id, file_path, churn_90d, cyclomatic_complexity, days_since_last_commit
+            SELECT id, file_path, churn_90d, cyclomatic_complexity, days_since_last_commit,
+                   test_coverage_ratio, fan_out, function_count, max_fn_complexity, unique_authors_30d
             FROM module_metrics
             WHERE job_id = %s
             """,
