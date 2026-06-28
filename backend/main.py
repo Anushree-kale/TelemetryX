@@ -3,9 +3,9 @@ import os
 from pathlib import Path
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, RedirectResponse, JSONResponse
 from pydantic import BaseModel, HttpUrl
 
 import analyzer
@@ -14,6 +14,8 @@ import config
 import database
 import export as job_export
 import post_analysis
+import oauth as oauth_service
+import jwt_service
 from debt_model import MODEL_PATH, get_scorer
 from failure_predictor import load_failure_model
 from graph_builder import graph_from_stored_json
@@ -76,6 +78,98 @@ class ApiKeyCreateRequest(BaseModel):
     team: str = "default"
     rate_limit_per_hour: int = 100
 
+
+# ── GitHub OAuth2 ────────────────────────────────────────────────────────────
+
+@app.get("/oauth/github")
+def github_oauth_start():
+    """Redirect the browser to GitHub's OAuth authorization page."""
+    url = oauth_service.build_authorize_url()
+    return RedirectResponse(url=url, status_code=302)
+
+
+@app.get("/oauth/github/callback")
+def github_oauth_callback(code: str | None = None, error: str | None = None):
+    """Receive GitHub's redirect with one-time code, exchange for JWT, set cookie."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    callback_url = os.getenv("GITHUB_CALLBACK_URL", "http://localhost:3000/auth/callback")
+    # Derive frontend root from callback URL
+    frontend_root = callback_url.rsplit("/auth/callback", 1)[0]
+
+    if error or not code:
+        return RedirectResponse(
+            url=f"{frontend_root}/login?error=github_denied",
+            status_code=302,
+        )
+
+    try:
+        access_token = oauth_service.exchange_code_for_token(code)
+        gh_user = oauth_service.fetch_github_user(access_token)
+    except Exception as exc:
+        logger.error("GitHub OAuth error: %s", exc)
+        return RedirectResponse(
+            url=f"{frontend_root}/login?error=github_failed",
+            status_code=302,
+        )
+
+    # Persist / update user in DB
+    db_user = database.upsert_user(
+        github_id=str(gh_user.get("id", "")),
+        login=gh_user.get("login", ""),
+        name=gh_user.get("name") or gh_user.get("login", ""),
+        email=gh_user.get("email") or "",
+        avatar_url=gh_user.get("avatar_url", ""),
+        provider="github",
+    )
+
+    # Mint JWT
+    payload = jwt_service.token_payload_from_github_user(gh_user)
+    payload["db_id"] = db_user["id"]
+    token = jwt_service.create_access_token(payload)
+
+    # Redirect to frontend callback route with HTTP-only JWT cookie
+    response = RedirectResponse(url=callback_url, status_code=302)
+    response.set_cookie(
+        key=jwt_service.COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+        path="/",
+    )
+    return response
+
+
+@app.get("/auth/me")
+def get_current_user(request: Request):
+    """Return the currently logged-in user decoded from the JWT cookie."""
+    token = request.cookies.get(jwt_service.COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = jwt_service.decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return {
+        "id": payload.get("db_id"),
+        "login": payload.get("login"),
+        "name": payload.get("name"),
+        "avatar_url": payload.get("avatar_url"),
+        "email": payload.get("email"),
+        "provider": payload.get("provider"),
+    }
+
+
+@app.post("/auth/logout")
+def logout():
+    """Clear the JWT cookie to log the user out."""
+    response = JSONResponse(content={"status": "ok", "message": "Logged out"})
+    response.delete_cookie(key=jwt_service.COOKIE_NAME, path="/")
+    return response
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health_check():

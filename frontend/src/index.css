@@ -19,6 +19,15 @@ body {
   padding: 2rem 1.5rem;
 }
 
+/* Auth/landing pages need full-viewport layout — break out of #root constraints */
+.auth-page,
+.landing-page,
+.oauth-callback-page {
+  margin: -2rem -1.5rem;
+  max-width: none;
+  width: calc(100% + 3rem);
+}
+
 h1 {
   font-size: 1.75rem;
   font-weight: 600;

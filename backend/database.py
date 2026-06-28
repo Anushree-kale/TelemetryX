@@ -120,6 +120,18 @@ CREATE TABLE IF NOT EXISTS api_keys (
     created_at TIMESTAMP DEFAULT NOW(),
     revoked_at TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    github_id TEXT UNIQUE NOT NULL,
+    login TEXT NOT NULL,
+    name TEXT,
+    email TEXT,
+    avatar_url TEXT,
+    provider TEXT NOT NULL DEFAULT 'github',
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_login_at TIMESTAMP DEFAULT NOW()
+);
 """
 
 MIGRATION_SQL = """
@@ -172,6 +184,18 @@ CREATE TABLE IF NOT EXISTS api_keys (
     rate_limit_per_hour INTEGER DEFAULT 100,
     created_at TIMESTAMP DEFAULT NOW(),
     revoked_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    github_id TEXT UNIQUE NOT NULL,
+    login TEXT NOT NULL,
+    name TEXT,
+    email TEXT,
+    avatar_url TEXT,
+    provider TEXT NOT NULL DEFAULT 'github',
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_login_at TIMESTAMP DEFAULT NOW()
 );
 """
 
@@ -1047,3 +1071,36 @@ def revoke_api_key(key_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def upsert_user(
+    github_id: str,
+    login: str,
+    name: str | None,
+    email: str | None,
+    avatar_url: str | None,
+    provider: str = "github",
+) -> dict:
+    """Insert a new user or update last_login_at if they already exist. Returns the user row."""
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO users (github_id, login, name, email, avatar_url, provider, last_login_at)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (github_id) DO UPDATE
+                SET login = EXCLUDED.login,
+                    name = EXCLUDED.name,
+                    email = EXCLUDED.email,
+                    avatar_url = EXCLUDED.avatar_url,
+                    last_login_at = NOW()
+            RETURNING *
+            """,
+            (github_id, login, name, email, avatar_url, provider),
+        )
+        return dict(cur.fetchone())
+
+
+def get_user_by_github_id(github_id: str) -> dict | None:
+    """Fetch a user record by their GitHub ID."""
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT * FROM users WHERE github_id = %s", (github_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None

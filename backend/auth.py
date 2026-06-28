@@ -25,6 +25,10 @@ PUBLIC_PATHS = frozenset(
         "/docs",
         "/openapi.json",
         "/redoc",
+        "/oauth/github",
+        "/oauth/github/callback",
+        "/auth/me",
+        "/auth/logout",
     }
 )
 
