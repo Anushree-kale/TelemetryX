@@ -1,0 +1,1709 @@
+{
+  "send_failure_alert": [
+    "error",
+    "get",
+    "info",
+    "join",
+    "len",
+    "post",
+    "raise_for_status",
+    "sort"
+  ],
+  "clone_repo": [
+    "clone_from",
+    "mkdtemp"
+  ],
+  "_cyclomatic_from_radon": [
+    "cc_visit",
+    "len",
+    "sum"
+  ],
+  "_cyclomatic_from_lizard": [
+    "len",
+    "sum"
+  ],
+  "_metrics_from_lizard": [
+    "analyze_file",
+    "getattr",
+    "int",
+    "len",
+    "max",
+    "round",
+    "sum"
+  ],
+  "_count_fan_out": [
+    "add",
+    "isinstance",
+    "len",
+    "parse",
+    "set",
+    "split",
+    "walk"
+  ],
+  "_extract_imports_multi": [
+    "Path",
+    "add",
+    "finditer",
+    "group",
+    "isinstance",
+    "list",
+    "lower",
+    "parse",
+    "set",
+    "sorted",
+    "split",
+    "walk"
+  ],
+  "is_test_file": [
+    "Path",
+    "endswith",
+    "lower",
+    "startswith"
+  ],
+  "_stem_key": [
+    "Path",
+    "endswith",
+    "len",
+    "lower",
+    "replace",
+    "startswith",
+    "strip"
+  ],
+  "_build_test_loc_index": [
+    "_stem_key",
+    "analyze_file",
+    "get",
+    "is_test_file",
+    "len",
+    "read_text",
+    "relative_to",
+    "replace",
+    "splitlines",
+    "str",
+    "strip"
+  ],
+  "compute_churn_90d": [
+    "isoformat",
+    "iter_commits",
+    "len",
+    "list",
+    "now",
+    "timedelta"
+  ],
+  "_commit_changed_files": [
+    "diff",
+    "keys",
+    "list",
+    "traverse"
+  ],
+  "extract_git_signals": [
+    "_commit_changed_files",
+    "any",
+    "append",
+    "fromtimestamp",
+    "get",
+    "items",
+    "iter_commits",
+    "len",
+    "list",
+    "lower",
+    "max",
+    "now",
+    "range",
+    "relative_to",
+    "replace",
+    "round",
+    "set",
+    "setdefault",
+    "str",
+    "timedelta",
+    "values"
+  ],
+  "should_ignore_path": [
+    "lower",
+    "startswith"
+  ],
+  "detect_language": [
+    "Path",
+    "items",
+    "lower",
+    "lstrip"
+  ],
+  "analyze_source_files": [
+    "Path",
+    "_build_test_loc_index",
+    "_cyclomatic_from_lizard",
+    "_cyclomatic_from_radon",
+    "_extract_imports_multi",
+    "_metrics_from_lizard",
+    "_stem_key",
+    "analyze_file",
+    "append",
+    "compute_churn_90d",
+    "detect_language",
+    "extend",
+    "extract_git_signals",
+    "get",
+    "int",
+    "is_test_file",
+    "join",
+    "len",
+    "lower",
+    "max",
+    "min",
+    "read_text",
+    "relative_to",
+    "replace",
+    "rglob",
+    "round",
+    "should_ignore_path",
+    "splitlines",
+    "str",
+    "strip"
+  ],
+  "analyze_repo": [
+    "analyze_source_files",
+    "clone_repo",
+    "rmtree"
+  ],
+  "supported_languages_summary": [
+    "items",
+    "len",
+    "sorted"
+  ],
+  "__init__": [
+    "LSTM",
+    "Linear",
+    "Path",
+    "Sigmoid",
+    "__init__",
+    "_build_graph",
+    "_deprecated_alias",
+    "list",
+    "super"
+  ],
+  "visit_ClassDef": [
+    "_get_name",
+    "append",
+    "extend",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_FunctionDef": [
+    "_get_name",
+    "append",
+    "extend",
+    "getattr",
+    "visit"
+  ],
+  "visit_AsyncFunctionDef": [
+    "visit_FunctionDef"
+  ],
+  "visit_Return": [
+    "_get_name",
+    "append",
+    "generic_visit"
+  ],
+  "visit_Call": [
+    "_get_name",
+    "append",
+    "generic_visit"
+  ],
+  "visit_Assign": [
+    "_get_name",
+    "append",
+    "generic_visit"
+  ],
+  "visit_AnnAssign": [
+    "_get_name",
+    "append",
+    "generic_visit"
+  ],
+  "visit_If": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_For": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_AsyncFor": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_While": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_Try": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_TryStar": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_Raise": [
+    "append",
+    "generic_visit",
+    "getattr"
+  ],
+  "visit_Import": [
+    "append",
+    "generic_visit"
+  ],
+  "visit_ImportFrom": [
+    "append",
+    "generic_visit"
+  ],
+  "_get_name": [
+    "_get_name",
+    "isinstance",
+    "str"
+  ],
+  "extract_metadata": [
+    "MetadataExtractor",
+    "basename",
+    "open",
+    "parse",
+    "read",
+    "str",
+    "update",
+    "visit"
+  ],
+  "auth_disabled": [
+    "bool",
+    "getenv",
+    "is_production",
+    "lower",
+    "strip"
+  ],
+  "hash_api_key": [
+    "encode",
+    "hexdigest",
+    "sha256",
+    "strip"
+  ],
+  "generate_api_key": [
+    "token_urlsafe"
+  ],
+  "key_prefix": [],
+  "lookup_api_key": [
+    "_lookup_db_key",
+    "compare_digest",
+    "getenv",
+    "hash_api_key",
+    "split",
+    "strip"
+  ],
+  "_lookup_db_key": [
+    "get_active_api_key_by_hash",
+    "warning"
+  ],
+  "check_rate_limit": [
+    "HTTPException",
+    "expire",
+    "from_url",
+    "get",
+    "getenv",
+    "incr",
+    "int",
+    "now",
+    "strftime",
+    "warning"
+  ],
+  "authenticate_request": [
+    "HTTPException",
+    "auth_disabled",
+    "check_rate_limit",
+    "get",
+    "lookup_api_key",
+    "rstrip",
+    "startswith",
+    "strip"
+  ],
+  "dispatch": [
+    "JSONResponse",
+    "authenticate_request",
+    "call_next"
+  ],
+  "_build_graph": [
+    "any",
+    "append",
+    "extend",
+    "extract_metadata",
+    "get",
+    "list",
+    "rglob",
+    "set",
+    "sorted",
+    "split",
+    "startswith",
+    "str"
+  ],
+  "save_to_file": [
+    "dump",
+    "open"
+  ],
+  "who_calls": [
+    "append",
+    "items"
+  ],
+  "what_breaks": [
+    "who_calls"
+  ],
+  "is_production": [
+    "getenv",
+    "lower"
+  ],
+  "require_admin_key_at_startup": [
+    "RuntimeError",
+    "getenv",
+    "is_production",
+    "strip"
+  ],
+  "get_expected_admin_key": [
+    "RuntimeError",
+    "getenv",
+    "is_production",
+    "strip"
+  ],
+  "require_api_keys_at_startup": [
+    "RuntimeError",
+    "get",
+    "getenv",
+    "is_production",
+    "list_api_keys",
+    "lower",
+    "strip"
+  ],
+  "get_pool": [
+    "ThreadedConnectionPool",
+    "getenv",
+    "int"
+  ],
+  "get_connection": [
+    "get_pool",
+    "getconn"
+  ],
+  "put_connection": [
+    "get_pool",
+    "putconn"
+  ],
+  "get_cursor": [
+    "close",
+    "commit",
+    "cursor",
+    "get_pool",
+    "getconn",
+    "putconn",
+    "rollback"
+  ],
+  "init_schema": [
+    "execute",
+    "get_cursor",
+    "split",
+    "strip"
+  ],
+  "create_job": [
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "update_job_status": [
+    "execute",
+    "get_cursor"
+  ],
+  "update_job_progress": [
+    "execute",
+    "get_cursor",
+    "max",
+    "min"
+  ],
+  "insert_module_metrics": [
+    "append",
+    "dumps",
+    "execute",
+    "fetchone",
+    "float",
+    "get",
+    "get_cursor",
+    "int"
+  ],
+  "insert_shap_explanations": [
+    "execute_batch",
+    "get_cursor"
+  ],
+  "get_job": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "_attach_reasons": [
+    "append",
+    "execute",
+    "fetchall",
+    "float",
+    "get",
+    "get_cursor",
+    "join",
+    "reasons_to_text",
+    "setdefault"
+  ],
+  "_module_shap_summaries": [
+    "append",
+    "execute",
+    "fetchall",
+    "float",
+    "get_cursor",
+    "items",
+    "join",
+    "len",
+    "reasons_to_text",
+    "setdefault"
+  ],
+  "_parse_module_row": [
+    "bool",
+    "dict",
+    "get",
+    "isinstance",
+    "loads"
+  ],
+  "get_job_modules": [
+    "_attach_reasons",
+    "_parse_module_row",
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_module_by_id": [
+    "_parse_module_row",
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "insert_co_change_pairs": [
+    "execute_batch",
+    "get_cursor"
+  ],
+  "get_co_change_pairs": [
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_job_shap_aggregate": [
+    "append",
+    "dict",
+    "execute",
+    "fetchall",
+    "float",
+    "get_cursor",
+    "int"
+  ],
+  "update_module_graph_metrics": [
+    "execute",
+    "get_cursor",
+    "items"
+  ],
+  "insert_dependency_graph": [
+    "dumps",
+    "execute",
+    "get_cursor"
+  ],
+  "get_dependency_graph": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor",
+    "isinstance",
+    "loads"
+  ],
+  "replace_roadmap_items": [
+    "execute",
+    "get_cursor"
+  ],
+  "get_roadmap_items": [
+    "_module_shap_summaries",
+    "dict",
+    "execute",
+    "fetchall",
+    "get",
+    "get_cursor"
+  ],
+  "set_module_critical": [
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "get_all_modules": [
+    "_attach_reasons",
+    "_parse_module_row",
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_all_metrics_for_training": [
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_repo_jobs_history": [
+    "append",
+    "bool",
+    "dict",
+    "execute",
+    "fetchall",
+    "float",
+    "get_cursor",
+    "int",
+    "isoformat"
+  ],
+  "get_repo_urls_list": [
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_last_completed_job_for_repo": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "get_active_job_for_repo": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "insert_failure_predictions": [
+    "dumps",
+    "execute",
+    "execute_batch",
+    "get",
+    "get_cursor"
+  ],
+  "get_job_failure_predictions": [
+    "append",
+    "dict",
+    "execute",
+    "fetchall",
+    "get",
+    "get_cursor",
+    "isinstance",
+    "loads"
+  ],
+  "get_failure_prediction_explanation": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get",
+    "get_cursor",
+    "isinstance",
+    "loads"
+  ],
+  "get_file_metric_history": [
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_historical_metric_sequences": [
+    "append",
+    "execute",
+    "fetchall",
+    "get_cursor",
+    "items",
+    "len",
+    "setdefault"
+  ],
+  "get_bulk_file_metric_history": [
+    "append",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "get_job_modules_raw": [
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor"
+  ],
+  "create_api_key_record": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor",
+    "isoformat"
+  ],
+  "list_api_keys": [
+    "append",
+    "dict",
+    "execute",
+    "fetchall",
+    "get_cursor",
+    "isoformat",
+    "list_api_keys"
+  ],
+  "get_active_api_key_by_hash": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor",
+    "isoformat"
+  ],
+  "revoke_api_key": [
+    "HTTPException",
+    "execute",
+    "get_cursor",
+    "revoke_api_key"
+  ],
+  "upsert_user": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "get_user_by_github_id": [
+    "dict",
+    "execute",
+    "fetchone",
+    "get_cursor"
+  ],
+  "synthetic_label": [
+    "float",
+    "get",
+    "int"
+  ],
+  "risk_level": [],
+  "estimate_roi_days": [
+    "float",
+    "get",
+    "int",
+    "max",
+    "round"
+  ],
+  "_feature_matrix": [
+    "array",
+    "float",
+    "get"
+  ],
+  "load": [
+    "exists",
+    "load"
+  ],
+  "save": [
+    "dump"
+  ],
+  "train": [
+    "XGBClassifier",
+    "_feature_matrix",
+    "array",
+    "fit",
+    "float",
+    "int",
+    "len",
+    "save",
+    "sum",
+    "synthetic_label",
+    "unique"
+  ],
+  "predict_batch": [
+    "_feature_matrix",
+    "append",
+    "estimate_roi_days",
+    "float",
+    "predict_proba",
+    "risk_level",
+    "round",
+    "train",
+    "zip"
+  ],
+  "get_scorer": [],
+  "_display_value": [
+    "float",
+    "get",
+    "int",
+    "isinstance",
+    "str"
+  ],
+  "build_shap_explanations": [
+    "TreeExplainer",
+    "_display_value",
+    "_feature_matrix",
+    "abs",
+    "append",
+    "enumerate",
+    "float",
+    "get",
+    "isinstance",
+    "len",
+    "round",
+    "shap_values",
+    "sorted",
+    "sum",
+    "zip"
+  ],
+  "reasons_to_text": [
+    "append"
+  ],
+  "_cell_value": [
+    "dumps",
+    "isinstance",
+    "str"
+  ],
+  "build_csv": [
+    "DictWriter",
+    "StringIO",
+    "_cell_value",
+    "encode",
+    "get",
+    "getvalue",
+    "writeheader",
+    "writerow"
+  ],
+  "build_pdf": [
+    "FPDF",
+    "_cell_value",
+    "add_page",
+    "bytes",
+    "cell",
+    "get",
+    "len",
+    "ln",
+    "output",
+    "set_auto_page_break",
+    "set_font",
+    "sum",
+    "zip"
+  ],
+  "_normalize_features": [
+    "float",
+    "get",
+    "max",
+    "min"
+  ],
+  "_build_background": [
+    "_normalize_features",
+    "append",
+    "enumerate",
+    "full",
+    "get_historical_metric_sequences",
+    "info",
+    "len",
+    "list",
+    "max",
+    "tensor",
+    "values",
+    "warning",
+    "zeros"
+  ],
+  "_get_shap_explainer": [
+    "GradientExplainer",
+    "_build_background",
+    "info"
+  ],
+  "explain_failure_risk": [
+    "RuntimeError",
+    "_get_shap_explainer",
+    "_normalize_features",
+    "_weight_proxy",
+    "abs",
+    "append",
+    "cat",
+    "enumerate",
+    "eval",
+    "float",
+    "get",
+    "isinstance",
+    "len",
+    "mean",
+    "round",
+    "shap_values",
+    "sorted",
+    "sum",
+    "tensor",
+    "warning",
+    "zeros"
+  ],
+  "_weight_proxy": [
+    "_normalize_features",
+    "append",
+    "enumerate",
+    "float",
+    "get",
+    "round",
+    "sorted"
+  ],
+  "_normalize_step": [
+    "float",
+    "get",
+    "max",
+    "min"
+  ],
+  "heuristic_risk_score": [
+    "_normalize_step"
+  ],
+  "_history_to_tensor": [
+    "_normalize_step",
+    "tensor"
+  ],
+  "forward": [
+    "cpu",
+    "fc",
+    "linear",
+    "lstm",
+    "pack_padded_sequence",
+    "sigmoid"
+  ],
+  "load_failure_model": [
+    "error",
+    "eval",
+    "exists",
+    "info",
+    "load",
+    "load_state_dict"
+  ],
+  "_pad_batch": [
+    "enumerate",
+    "len",
+    "max",
+    "tensor",
+    "zeros"
+  ],
+  "train_failure_model": [
+    "Adam",
+    "GLOBAL_MODEL",
+    "MSELoss",
+    "_normalize_step",
+    "_pad_batch",
+    "append",
+    "backward",
+    "criterion",
+    "eval",
+    "heuristic_risk_score",
+    "info",
+    "item",
+    "len",
+    "max",
+    "parameters",
+    "print",
+    "randperm",
+    "range",
+    "save",
+    "state_dict",
+    "step",
+    "tensor",
+    "tolist",
+    "train",
+    "unsqueeze",
+    "values",
+    "warning",
+    "zero_grad"
+  ],
+  "train_failure_model_from_db": [
+    "get_historical_metric_sequences",
+    "train_failure_model"
+  ],
+  "predict_failures": [
+    "GLOBAL_MODEL",
+    "_history_to_tensor",
+    "append",
+    "error",
+    "explain_failure_risk",
+    "float",
+    "get",
+    "get_bulk_file_metric_history",
+    "get_job_modules_raw",
+    "heuristic_risk_score",
+    "info",
+    "insert_failure_predictions",
+    "item",
+    "len",
+    "load_failure_model",
+    "no_grad",
+    "round",
+    "warning"
+  ],
+  "_py_files_in_repo": [
+    "Path",
+    "add",
+    "join",
+    "len",
+    "lower",
+    "relative_to",
+    "replace",
+    "rglob",
+    "set",
+    "should_ignore_path",
+    "split",
+    "str"
+  ],
+  "_resolve_import": [
+    "Path",
+    "append",
+    "extend",
+    "fromkeys",
+    "get",
+    "isinstance",
+    "join",
+    "len",
+    "list",
+    "lower",
+    "max",
+    "replace",
+    "split",
+    "str"
+  ],
+  "collect_python_import_edges": [
+    "Path",
+    "_py_files_in_repo",
+    "_resolve_import",
+    "get",
+    "isinstance",
+    "items",
+    "len",
+    "parse",
+    "read_text",
+    "relative_to",
+    "replace",
+    "rglob",
+    "should_ignore_path",
+    "str",
+    "walk"
+  ],
+  "collect_import_edges": [
+    "Path",
+    "_extract_imports_multi",
+    "append",
+    "get",
+    "is_file",
+    "items",
+    "lower",
+    "read_text",
+    "setdefault",
+    "split"
+  ],
+  "build_dependency_graph": [
+    "DiGraph",
+    "Path",
+    "add_edge",
+    "add_node",
+    "betweenness_centrality",
+    "collect_import_edges",
+    "collect_python_import_edges",
+    "descendants",
+    "enumerate",
+    "float",
+    "get",
+    "greedy_modularity_communities",
+    "has_edge",
+    "in_degree",
+    "int",
+    "items",
+    "len",
+    "list",
+    "lower",
+    "node_link_data",
+    "number_of_edges",
+    "number_of_nodes",
+    "out_degree",
+    "round",
+    "split",
+    "strip",
+    "to_undirected"
+  ],
+  "graph_from_stored_json": [
+    "isinstance",
+    "loads",
+    "node_link_graph"
+  ],
+  "get_secret_key": [
+    "getenv",
+    "strip",
+    "warn"
+  ],
+  "create_access_token": [
+    "copy",
+    "encode",
+    "get_secret_key",
+    "now",
+    "timedelta"
+  ],
+  "decode_access_token": [
+    "decode",
+    "get_secret_key"
+  ],
+  "token_payload_from_github_user": [
+    "get",
+    "str"
+  ],
+  "lifespan": [
+    "get_scorer",
+    "init_schema",
+    "load",
+    "load_failure_model",
+    "require_admin_key_at_startup",
+    "require_api_keys_at_startup"
+  ],
+  "github_oauth_start": [
+    "RedirectResponse",
+    "build_authorize_url"
+  ],
+  "github_oauth_callback": [
+    "RedirectResponse",
+    "create_access_token",
+    "error",
+    "exchange_code_for_token",
+    "fetch_github_user",
+    "get",
+    "getLogger",
+    "getenv",
+    "rsplit",
+    "set_cookie",
+    "str",
+    "token_payload_from_github_user",
+    "upsert_user"
+  ],
+  "get_current_user": [
+    "HTTPException",
+    "decode_access_token",
+    "get"
+  ],
+  "logout": [
+    "JSONResponse",
+    "delete_cookie"
+  ],
+  "health_check": [
+    "auth_disabled"
+  ],
+  "analyze_repo_endpoint": [
+    "AnalyzeResponse",
+    "create_job",
+    "delay",
+    "str"
+  ],
+  "get_job_status": [
+    "HTTPException",
+    "JobStatusResponse",
+    "get",
+    "get_job"
+  ],
+  "export_job_results": [
+    "HTTPException",
+    "Response",
+    "build_csv",
+    "build_pdf",
+    "get_job",
+    "get_job_modules",
+    "lower",
+    "max",
+    "min",
+    "strip"
+  ],
+  "get_results": [
+    "HTTPException",
+    "get",
+    "get_job",
+    "get_job_modules",
+    "isoformat"
+  ],
+  "list_modules": [
+    "get_all_modules"
+  ],
+  "get_admin_key": [
+    "HTTPException",
+    "get_expected_admin_key"
+  ],
+  "retrain_model": [
+    "HTTPException",
+    "get_all_metrics_for_training",
+    "get_scorer",
+    "len",
+    "str",
+    "train"
+  ],
+  "create_api_key": [
+    "create_api_key_record",
+    "generate_api_key",
+    "hash_api_key",
+    "key_prefix",
+    "max",
+    "strip"
+  ],
+  "get_jobs_history": [
+    "get_repo_jobs_history"
+  ],
+  "get_analyzer_languages": [
+    "supported_languages_summary"
+  ],
+  "get_job_co_changes": [
+    "HTTPException",
+    "get_co_change_pairs",
+    "get_job",
+    "len"
+  ],
+  "get_job_shap_summary": [
+    "HTTPException",
+    "get_job",
+    "get_job_shap_aggregate"
+  ],
+  "get_job_failure_risk": [
+    "HTTPException",
+    "get_job",
+    "get_job_failure_predictions"
+  ],
+  "get_failure_risk_explanation": [
+    "HTTPException",
+    "get",
+    "get_failure_prediction_explanation",
+    "get_job"
+  ],
+  "get_model_status": [
+    "exists",
+    "get_all_metrics_for_training",
+    "get_scorer",
+    "len"
+  ],
+  "get_roadmap": [
+    "HTTPException",
+    "get_job",
+    "get_roadmap_items"
+  ],
+  "get_graph": [
+    "HTTPException",
+    "append",
+    "bool",
+    "get",
+    "get_dependency_graph",
+    "get_job",
+    "get_job_modules"
+  ],
+  "get_graph_node": [
+    "HTTPException",
+    "bool",
+    "get",
+    "get_dependency_graph",
+    "get_job",
+    "get_job_modules",
+    "graph_from_stored_json",
+    "list",
+    "next",
+    "predecessors",
+    "successors",
+    "unquote"
+  ],
+  "toggle_module_critical": [
+    "HTTPException",
+    "get_roadmap_items",
+    "run_post_analysis",
+    "set_module_critical"
+  ],
+  "get_clusters": [
+    "HTTPException",
+    "append",
+    "float",
+    "get",
+    "get_dependency_graph",
+    "get_job",
+    "get_job_modules",
+    "isinstance",
+    "items",
+    "join",
+    "len",
+    "max",
+    "round",
+    "setdefault",
+    "sort",
+    "split",
+    "sum"
+  ],
+  "get_dependency_graph_legacy": [
+    "Path",
+    "append",
+    "get",
+    "get_graph"
+  ],
+  "github_webhook": [
+    "HTTPException",
+    "create_job",
+    "delay",
+    "get",
+    "replace"
+  ],
+  "get_repositories": [
+    "get_repo_urls_list"
+  ],
+  "compare_repositories": [
+    "HTTPException",
+    "calc_summary",
+    "create_job",
+    "delay",
+    "get_active_job_for_repo",
+    "get_job_modules",
+    "get_last_completed_job_for_repo",
+    "isoformat",
+    "strip"
+  ],
+  "calc_summary": [
+    "get",
+    "len",
+    "round",
+    "sum"
+  ],
+  "get_privacy_comparison": [
+    "get",
+    "get_cached_analysis",
+    "get_job",
+    "get_job_modules",
+    "next",
+    "round"
+  ],
+  "get_synthetic_compliance": [
+    "HTTPException",
+    "TabularGMMSynthesizer",
+    "TimeSeriesLSTMSynthesizer",
+    "fit",
+    "get",
+    "get_job",
+    "get_job_modules",
+    "get_repo_jobs_history",
+    "len",
+    "sample",
+    "validate_fidelity"
+  ],
+  "get_client_id": [
+    "RuntimeError",
+    "getenv",
+    "strip"
+  ],
+  "get_client_secret": [
+    "RuntimeError",
+    "getenv",
+    "strip"
+  ],
+  "get_callback_url": [
+    "getenv"
+  ],
+  "build_authorize_url": [
+    "get_client_id"
+  ],
+  "exchange_code_for_token": [
+    "ValueError",
+    "get",
+    "get_client_id",
+    "get_client_secret",
+    "json",
+    "post",
+    "raise_for_status"
+  ],
+  "fetch_github_user": [
+    "get",
+    "json",
+    "raise_for_status"
+  ],
+  "run_post_analysis": [
+    "build_dependency_graph",
+    "compute_priorities",
+    "get_co_change_pairs",
+    "get_job_modules",
+    "insert_dependency_graph",
+    "replace_roadmap_items",
+    "update_module_graph_metrics"
+  ],
+  "_build_reason": [],
+  "compute_priorities": [
+    "_build_reason",
+    "append",
+    "bool",
+    "build_dependency_graph",
+    "descendants",
+    "enumerate",
+    "float",
+    "get",
+    "graph_from_stored_json",
+    "int",
+    "len",
+    "list",
+    "max",
+    "round",
+    "sort",
+    "sum"
+  ],
+  "top_roadmap_items": [
+    "compute_priorities"
+  ],
+  "_client": [
+    "from_url"
+  ],
+  "_cache_key": [
+    "encode",
+    "hexdigest",
+    "lower",
+    "sha256",
+    "strip"
+  ],
+  "get_cached_analysis": [
+    "_cache_key",
+    "_client",
+    "get",
+    "loads"
+  ],
+  "set_cached_analysis": [
+    "_cache_key",
+    "_client",
+    "dumps",
+    "setex"
+  ],
+  "_enrich_metrics": [
+    "build_shap_explanations",
+    "get_scorer",
+    "load",
+    "predict_batch",
+    "zip"
+  ],
+  "_ensure_backend_on_path": [
+    "Path",
+    "insert",
+    "resolve",
+    "str"
+  ],
+  "analyze_repo_task": [
+    "_enrich_metrics",
+    "_ensure_backend_on_path",
+    "_persist_results",
+    "analyze_source_files",
+    "clone_repo",
+    "delay",
+    "get",
+    "get_cached_analysis",
+    "isinstance",
+    "len",
+    "perturb_metrics",
+    "rmtree",
+    "run_post_analysis",
+    "set_cached_analysis",
+    "str",
+    "update_job_progress",
+    "update_job_status"
+  ],
+  "_persist_results": [
+    "append",
+    "insert_co_change_pairs",
+    "insert_module_metrics",
+    "insert_shap_explanations",
+    "pop",
+    "zip"
+  ],
+  "predict_failures_task": [
+    "_ensure_backend_on_path",
+    "error",
+    "getLogger",
+    "get_job_failure_predictions",
+    "load_failure_model",
+    "predict_failures",
+    "send_failure_alert"
+  ],
+  "main": [
+    "exit",
+    "init_schema",
+    "print",
+    "train_failure_model_from_db"
+  ],
+  "calibrate_noise": [
+    "ValueError",
+    "log",
+    "sqrt"
+  ],
+  "strip_pii_and_anonymize": [
+    "append",
+    "int"
+  ],
+  "perturb_metrics": [
+    "append",
+    "calibrate_noise",
+    "float",
+    "gauss",
+    "get",
+    "info",
+    "int",
+    "isinstance",
+    "items",
+    "len",
+    "max",
+    "min",
+    "round",
+    "strip_pii_and_anonymize"
+  ],
+  "_default_for_column": [
+    "get"
+  ],
+  "_json_safe_float": [
+    "float",
+    "isfinite"
+  ],
+  "_coerce_sample_value": [
+    "float",
+    "int",
+    "max",
+    "min",
+    "round"
+  ],
+  "fit": [
+    "Adam",
+    "GaussianMixture",
+    "MSELoss",
+    "_LSTMGenerator",
+    "_default_for_column",
+    "_fit_simple_fallback",
+    "all",
+    "append",
+    "array",
+    "backward",
+    "criterion",
+    "enumerate",
+    "fit",
+    "float",
+    "get",
+    "info",
+    "isinstance",
+    "len",
+    "max",
+    "mean",
+    "min",
+    "model",
+    "parameters",
+    "range",
+    "std",
+    "step",
+    "tensor",
+    "train",
+    "unsqueeze",
+    "warning",
+    "zero_grad"
+  ],
+  "sample": [
+    "RuntimeError",
+    "_coerce_sample_value",
+    "append",
+    "cat",
+    "clone",
+    "dict",
+    "enumerate",
+    "eval",
+    "float",
+    "gauss",
+    "get",
+    "item",
+    "len",
+    "max",
+    "min",
+    "model",
+    "no_grad",
+    "normal",
+    "randn_like",
+    "range",
+    "sample",
+    "stack",
+    "tensor",
+    "zeros"
+  ],
+  "_fit_simple_fallback": [
+    "float",
+    "get",
+    "max",
+    "min"
+  ],
+  "validate_fidelity": [
+    "_json_safe_float",
+    "abs",
+    "array",
+    "bool",
+    "float",
+    "histogram",
+    "int",
+    "isfinite",
+    "jensenshannon",
+    "ks_2samp",
+    "len",
+    "linspace",
+    "list",
+    "max",
+    "mean",
+    "min",
+    "round",
+    "sqrt",
+    "std",
+    "sum"
+  ],
+  "_deprecated_alias": [
+    "warn"
+  ],
+  "_test_env": [
+    "init_schema",
+    "setdefault"
+  ],
+  "mock_repo": [
+    "mkdir",
+    "write_text"
+  ],
+  "api_client": [
+    "TestClient",
+    "setenv"
+  ],
+  "test_enterprise_extensions_present": [],
+  "test_detect_language": [
+    "detect_language"
+  ],
+  "test_analyze_multilanguage_repo": [
+    "analyze_source_files",
+    "len",
+    "str"
+  ],
+  "test_supported_languages_summary": [
+    "supported_languages_summary"
+  ],
+  "test_bootstrap_api_key_lookup": [
+    "lookup_api_key",
+    "setenv"
+  ],
+  "test_auth_disabled_in_dev_without_keys": [
+    "auth_disabled",
+    "delenv",
+    "setenv"
+  ],
+  "test_auth_required_in_production": [
+    "auth_disabled",
+    "delenv",
+    "setenv"
+  ],
+  "test_health_is_public": [
+    "get",
+    "json"
+  ],
+  "test_analyze_without_key_when_auth_disabled": [
+    "json",
+    "post",
+    "setattr"
+  ],
+  "test_analyze_rejects_missing_key_when_auth_enabled": [
+    "TestClient",
+    "post",
+    "reload",
+    "setattr",
+    "setenv"
+  ],
+  "test_analyzer_produces_scorable_modules": [
+    "all",
+    "analyze_source_files",
+    "get_scorer",
+    "len",
+    "predict_batch",
+    "str"
+  ],
+  "test_graph_and_priorities_from_analyzed_modules": [
+    "analyze_source_files",
+    "build_dependency_graph",
+    "compute_priorities",
+    "get_scorer",
+    "len",
+    "number_of_nodes",
+    "predict_batch",
+    "str"
+  ],
+  "test_post_analysis_persists_when_db_available": [
+    "analyze_source_files",
+    "create_job",
+    "get_dependency_graph",
+    "get_job_modules",
+    "get_roadmap_items",
+    "get_scorer",
+    "init_schema",
+    "insert_module_metrics",
+    "len",
+    "predict_batch",
+    "run_post_analysis",
+    "str"
+  ],
+  "test_pii_stripping_and_anonymization": [
+    "len",
+    "strip_pii_and_anonymize"
+  ],
+  "test_k_anonymity_contributor_data": [
+    "len",
+    "perturb_metrics"
+  ],
+  "test_tabular_gmm_synthesizer": [
+    "TabularGMMSynthesizer",
+    "fit",
+    "len",
+    "sample"
+  ],
+  "test_ctgan_tabular_synthesizer": [
+    "CTGANSynthesizer",
+    "fit",
+    "len",
+    "sample",
+    "warns"
+  ],
+  "test_time_series_lstm_synthesizer": [
+    "TimeSeriesLSTMSynthesizer",
+    "fit",
+    "len",
+    "range",
+    "sample"
+  ],
+  "test_timegan_time_series_synthesizer": [
+    "TimeGANSynthesizer",
+    "fit",
+    "len",
+    "range",
+    "sample",
+    "warns"
+  ],
+  "test_fidelity_validation_gate": [
+    "range",
+    "validate_fidelity"
+  ],
+  "test_fidelity_validation_constant_metric_is_json_safe": [
+    "dumps",
+    "isnan",
+    "range",
+    "validate_fidelity"
+  ],
+  "synthesis_client": [
+    "TestClient",
+    "reload",
+    "setenv"
+  ],
+  "test_synthesis_health": [
+    "get",
+    "json"
+  ],
+  "test_tabular_generate": [
+    "json",
+    "len",
+    "post"
+  ],
+  "test_validate_fidelity": [
+    "float",
+    "json",
+    "post",
+    "range"
+  ],
+  "test_tabular_pipeline": [
+    "json",
+    "post"
+  ]
+}
