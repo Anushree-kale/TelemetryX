@@ -9,6 +9,7 @@ from typing import Any
 import lizard
 from git import Repo
 from radon.complexity import cc_visit
+from cfg_analyzer import analyze_reachability
 
 
 def clone_repo(repo_url: str) -> tuple[str, Repo]:
@@ -502,9 +503,11 @@ def analyze_source_files(
 
         ext = file.suffix.lower()
 
+        reachability_issues = []
         # 1. Cyclomatic & AST metric calculations
         if ext == ".py":
             cyclomatic = _cyclomatic_from_radon(source)
+            reachability_issues = analyze_reachability(source)
             try:
                 lizard_metrics = _metrics_from_lizard(str(file))
             except Exception:
@@ -576,6 +579,7 @@ def analyze_source_files(
                 "bug_fix_ratio": signals["bug_fix_ratio"],
                 "days_since_last_commit": signals["days_since_last_commit"],
                 "co_changes": signals["co_changes"],
+                "reachability_issues": reachability_issues,
             }
         )
 
