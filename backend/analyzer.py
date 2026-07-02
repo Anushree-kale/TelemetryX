@@ -10,6 +10,7 @@ import lizard
 from git import Repo
 from radon.complexity import cc_visit
 from cfg_analyzer import analyze_reachability
+from dfg_analyzer import analyze_dataflow
 
 
 def clone_repo(repo_url: str) -> tuple[str, Repo]:
@@ -504,10 +505,12 @@ def analyze_source_files(
         ext = file.suffix.lower()
 
         reachability_issues = []
+        dfg_issues = []
         # 1. Cyclomatic & AST metric calculations
         if ext == ".py":
             cyclomatic = _cyclomatic_from_radon(source)
             reachability_issues = analyze_reachability(source)
+            dfg_issues = analyze_dataflow(source)
             try:
                 lizard_metrics = _metrics_from_lizard(str(file))
             except Exception:
@@ -580,6 +583,7 @@ def analyze_source_files(
                 "days_since_last_commit": signals["days_since_last_commit"],
                 "co_changes": signals["co_changes"],
                 "reachability_issues": reachability_issues,
+                "dfg_issues": dfg_issues,
             }
         )
 

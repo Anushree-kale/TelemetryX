@@ -64,6 +64,39 @@ class CallGraph:
         """
         return self.who_calls(target_function)
 
+    def get_dead_functions(self) -> List[str]:
+        """Phase A.6: Returns functions with in-degree 0 (nobody calls them)."""
+        called_functions = set()
+        for calls in self.graph.values():
+            called_functions.update(calls)
+            
+        dead_funcs = []
+        ignore_patterns = ["__init__", "main", "test_", "setUp", "tearDown"]
+        
+        for func in self.graph.keys():
+            if func not in called_functions:
+                # Basic heuristic to ignore standard entrypoints or tests
+                if not any(func.startswith(p) or func == p for p in ignore_patterns):
+                    # Also ignore dunder methods
+                    if not (func.startswith("__") and func.endswith("__")):
+                        dead_funcs.append(func)
+        return sorted(dead_funcs)
+
+    def impact_analysis(self, target_function: str) -> List[str]:
+        """Phase A.7: Returns all functions directly or indirectly impacted by a change."""
+        impacted = set()
+        queue = [target_function]
+        
+        while queue:
+            current = queue.pop(0)
+            callers = self.who_calls(current)
+            for caller in callers:
+                if caller not in impacted:
+                    impacted.add(caller)
+                    queue.append(caller)
+                    
+        return sorted(list(impacted))
+
 if __name__ == "__main__":
     import sys
     repo_dir = sys.argv[1] if len(sys.argv) > 1 else "."
