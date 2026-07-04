@@ -5,43 +5,47 @@ import "../styles/home.css";
 
 const Features = [
   {
-    icon: "🔍",
-    title: "Deep Repository Analysis",
-    description: "Comprehensive insights into your GitHub repositories",
+    title: "Deep Analysis",
+    description: "Understand code patterns",
   },
   {
-    icon: "📊",
-    title: "Visual Metrics",
-    description: "Beautiful charts and data visualizations",
+    title: "Visual Insights",
+    description: "See metrics at a glance",
   },
   {
-    icon: "⚡",
-    title: "Real-time Tracking",
-    description: "Monitor your codebase in real-time",
-  },
-  {
-    icon: "🛠️",
-    title: "Developer Tools",
-    description: "Powerful tools for code analysis",
+    title: "Real-time Data",
+    description: "Live repository tracking",
   },
 ];
 
 export default function HomePage() {
   const [displayedText, setDisplayedText] = useState("");
-  const fullText = "github.com/your-repo";
+  const [isHovered, setIsHovered] = useState(false);
+  const fullText = "analyze your repository";
 
   useEffect(() => {
     if (displayedText.length < fullText.length) {
       const timer = setTimeout(() => {
         setDisplayedText(fullText.slice(0, displayedText.length + 1));
-      }, 50);
+      }, 80);
       return () => clearTimeout(timer);
     }
   }, [displayedText]);
 
+  // Rotating words for animated hero
+  const words = ["Repository", "Codebase", "Project"];
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setWordIndex((prev) => (prev + 1) % words.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="home-page">
-      {/* Hero Section with Terminal Aesthetic */}
+      {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-content">
           <motion.div
@@ -50,34 +54,42 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="label-dot">●</span>
-            Git Repository Analytics
+            <span className="label-dot">◆</span>
+            TELEMETRY X
           </motion.div>
 
           <motion.h1
             className="hero-title"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <span className="title-line">Understand Your</span>
-            <span className="title-line highlight">Codebase</span>
+            <span className="title-main">Analyze Your</span>
+            <motion.span
+              className="title-word"
+              key={wordIndex}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.6 }}
+            >
+              {words[wordIndex]}
+            </motion.span>
           </motion.h1>
 
           <motion.p
             className="hero-subtitle"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
           >
-            TelemetryX analyzes your GitHub repositories to reveal architectural
-            patterns, dependencies, and code quality metrics you never knew existed.
+            Uncover insights from your GitHub repositories with visual metrics and real-time analysis
           </motion.p>
 
-          {/* Terminal-style Input Box */}
+          {/* Command-style Input Box */}
           <motion.div
-            className="terminal-box"
-            initial={{ opacity: 0, scale: 0.95 }}
+            className="cmd-box"
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
@@ -167,7 +179,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section with Boxes */}
+      {/* Features Section */}
       <section className="features-section">
         <motion.div
           className="section-header"
@@ -176,10 +188,7 @@ export default function HomePage() {
           transition={{ duration: 0.6 }}
           viewport={{ once: true, margin: "-100px" }}
         >
-          <h2 className="section-title">Powerful Analytics</h2>
-          <p className="section-subtitle">
-            Everything you need to understand your repository
-          </p>
+          <h2 className="section-title">What you can do</h2>
         </motion.div>
 
         <div className="features-grid">
@@ -187,48 +196,17 @@ export default function HomePage() {
             <motion.div
               key={index}
               className="feature-box"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.15 }}
               viewport={{ once: true, margin: "-100px" }}
-              whileHover={{ y: -8 }}
+              whileHover={{ x: 10, transition: { duration: 0.3 } }}
             >
-              <div className="feature-icon">{feature.icon}</div>
               <h3 className="feature-title">{feature.title}</h3>
               <p className="feature-description">{feature.description}</p>
             </motion.div>
           ))}
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="cta-section">
-        <motion.div
-          className="cta-content"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true, margin: "-100px" }}
-        >
-          <h2 className="cta-title">Ready to analyze your repository?</h2>
-          <p className="cta-subtitle">
-            Join developers who are optimizing their codebase with TelemetryX
-          </p>
-
-          <div className="cta-buttons">
-            <Link to="/signup" className="btn-cta-primary">
-              Get Started Free
-            </Link>
-            <a
-              href="https://github.com/Anushree-kale/TelemetryX"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-cta-secondary"
-            >
-              View on GitHub
-            </a>
-          </div>
-        </motion.div>
       </section>
 
       {/* GitHub Reference Footer */}
