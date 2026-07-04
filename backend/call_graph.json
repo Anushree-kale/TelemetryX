@@ -137,7 +137,9 @@
     "_extract_imports_multi",
     "_metrics_from_lizard",
     "_stem_key",
+    "analyze_dataflow",
     "analyze_file",
+    "analyze_reachability",
     "append",
     "compute_churn_90d",
     "detect_language",
@@ -184,19 +186,33 @@
   ],
   "visit_ClassDef": [
     "_get_name",
+    "analyze_block",
     "append",
     "extend",
     "generic_visit",
-    "getattr"
+    "getattr",
+    "isinstance",
+    "pop_scope",
+    "push_scope",
+    "visit"
   ],
   "visit_FunctionDef": [
     "_get_name",
+    "analyze_block",
     "append",
     "extend",
+    "generic_visit",
     "getattr",
+    "isinstance",
+    "pop_scope",
+    "push_scope",
+    "record_assignment",
     "visit"
   ],
   "visit_AsyncFunctionDef": [
+    "analyze_block",
+    "isinstance",
+    "visit",
     "visit_FunctionDef"
   ],
   "visit_Return": [
@@ -212,12 +228,16 @@
   "visit_Assign": [
     "_get_name",
     "append",
-    "generic_visit"
+    "extract_assignments",
+    "generic_visit",
+    "visit"
   ],
   "visit_AnnAssign": [
     "_get_name",
     "append",
-    "generic_visit"
+    "extract_assignments",
+    "generic_visit",
+    "visit"
   ],
   "visit_If": [
     "append",
@@ -358,6 +378,63 @@
   "what_breaks": [
     "who_calls"
   ],
+  "get_dead_functions": [
+    "any",
+    "append",
+    "endswith",
+    "keys",
+    "set",
+    "sorted",
+    "startswith",
+    "update",
+    "values"
+  ],
+  "impact_analysis": [
+    "add",
+    "append",
+    "list",
+    "pop",
+    "set",
+    "sorted",
+    "who_calls"
+  ],
+  "analyze_reachability": [
+    "ReachabilityVisitor",
+    "parse",
+    "sorted",
+    "values",
+    "visit"
+  ],
+  "visit_Module": [
+    "analyze_block",
+    "isinstance",
+    "visit"
+  ],
+  "analyze_block": [
+    "_has_break",
+    "analyze_block",
+    "append",
+    "does_terminate",
+    "evaluate_condition",
+    "getattr",
+    "hasattr",
+    "isinstance",
+    "type"
+  ],
+  "evaluate_condition": [
+    "bool",
+    "isinstance"
+  ],
+  "does_terminate": [
+    "does_terminate",
+    "hasattr",
+    "isinstance"
+  ],
+  "_has_break": [
+    "BreakFinder",
+    "visit"
+  ],
+  "visit_Break": [],
   "is_production": [
     "getenv",
     "lower"
@@ -731,6 +808,54 @@
     "zip"
   ],
   "get_scorer": [],
+  "analyze_dataflow": [
+    "DFGVisitor",
+    "parse",
+    "pop_scope",
+    "sorted",
+    "values",
+    "visit"
+  ],
+  "get_scope": [],
+  "push_scope": [
+    "append"
+  ],
+  "pop_scope": [
+    "append",
+    "items",
+    "pop",
+    "startswith"
+  ],
+  "record_assignment": [
+    "append",
+    "get_scope",
+    "startswith"
+  ],
+  "record_usage": [
+    "reversed"
+  ],
+  "visit_AugAssign": [
+    "extract_assignments",
+    "extract_usages",
+    "visit"
+  ],
+  "visit_Name": [
+    "isinstance",
+    "record_usage"
+  ],
+  "extract_assignments": [
+    "extract_assignments",
+    "getattr",
+    "isinstance",
+    "record_assignment",
+    "visit"
+  ],
+  "extract_usages": [
+    "extract_usages",
+    "isinstance",
+    "record_usage",
+    "visit"
+  ],
   "_display_value": [
     "float",
     "get",
