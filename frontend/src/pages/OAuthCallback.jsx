@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { setUser } from "../auth";
-import VideoBackground from "../components/VideoBackground";
+import InterfaceBackground from "../components/InterfaceBackground";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState("loading"); // loading | error
+  const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
@@ -23,7 +23,6 @@ export default function OAuthCallback() {
       return;
     }
 
-    // JWT cookie was set by backend redirect — verify it via /auth/me
     fetch(`${API_BASE}/auth/me`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("auth_failed");
@@ -48,8 +47,7 @@ export default function OAuthCallback() {
 
   if (status === "error") {
     return (
-      <div className="oauth-callback-page">
-        <VideoBackground blurred />
+      <InterfaceBackground className="oauth-callback-page">
         <div className="oauth-callback-box">
           <div className="oauth-callback-icon oauth-callback-icon--error">✕</div>
           <p className="oauth-callback-error">{errorMsg}</p>
@@ -61,17 +59,16 @@ export default function OAuthCallback() {
             Back to sign in
           </button>
         </div>
-      </div>
+      </InterfaceBackground>
     );
   }
 
   return (
-    <div className="oauth-callback-page">
-      <VideoBackground blurred />
+    <InterfaceBackground className="oauth-callback-page">
       <div className="oauth-callback-box">
         <div className="oauth-callback-spinner" />
         <p className="oauth-callback-text">Signing you in with GitHub&hellip;</p>
       </div>
-    </div>
+    </InterfaceBackground>
   );
 }

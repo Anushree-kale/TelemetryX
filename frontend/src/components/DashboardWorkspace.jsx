@@ -18,7 +18,7 @@ import PrivacyTab from "./PrivacyTab";
 import SectionHint from "./SectionHint";
 import SideNav from "./SideNav";
 import OrangeCat from "./OrangeCat";
-import RepoScrollPicker from "./RepoScrollPicker";
+import RecentProfilesPicker from "./RecentProfilesPicker";
 import FailureRiskTab from "./FailureRiskTab";
 import { PANEL_TITLES } from "../labels";
 import ExportButton from "./ExportButton";
@@ -197,7 +197,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
 
       <div className="dashboard-stage">
         {uiPhase === "landing" && (
-          <RepoScrollPicker onRepoSelect={handleRepoSelect} />
+          <RecentProfilesPicker repoList={repoList} onRepoSelect={handleRepoSelect} />
         )}
 
         <section

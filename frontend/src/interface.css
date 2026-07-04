@@ -1,0 +1,610 @@
+/* INTERFACE-inspired — black canvas, GitHub green accents */
+
+.interface-bg {
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg-stage, #010409);
+  color: var(--text-on-dark, #f0f6fc);
+  overflow: hidden;
+}
+
+.interface-bg__content {
+  position: relative;
+  z-index: 1;
+}
+
+.interface-bg__grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(48, 54, 61, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(48, 54, 61, 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 75%);
+  opacity: 0.45;
+}
+
+.interface-bg__glow {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.interface-bg__glow--a {
+  width: 420px;
+  height: 420px;
+  top: -80px;
+  left: 10%;
+  background: rgba(35, 134, 54, 0.55);
+}
+
+.interface-bg__glow--b {
+  width: 360px;
+  height: 360px;
+  bottom: 10%;
+  right: 5%;
+  background: rgba(63, 185, 80, 0.25);
+}
+
+/* ── Landing hero ── */
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem 6rem;
+  text-align: center;
+}
+
+.landing-hero__title {
+  margin-bottom: 1rem;
+}
+
+.landing-hero__title .brand-title {
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: -0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #f0f6fc 0%, #8b949e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-tagline {
+  max-width: 34rem;
+  margin: 0 0 2.5rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #8b949e;
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent-emphasis, #238636);
+  background: var(--accent-emphasis, #238636);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 0 1px rgba(240, 246, 252, 0.08) inset;
+}
+
+.landing-cta:hover {
+  background: var(--accent-hover, #2ea043);
+  border-color: var(--accent-hover, #2ea043);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(35, 134, 54, 0.35);
+}
+
+.landing-cta--ghost {
+  background: transparent;
+  border-color: #30363d;
+  color: #f0f6fc;
+  box-shadow: none;
+}
+
+.landing-cta--ghost:hover {
+  background: rgba(48, 54, 61, 0.5);
+  border-color: #484f58;
+  box-shadow: none;
+}
+
+.landing-hero__marquee {
+  width: 100%;
+  margin-top: 3rem;
+  opacity: 0.55;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent, black 15%, black 85%, transparent);
+}
+
+/* ── Recent profiles picker (post-login landing) ── */
+.recent-profiles {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5rem 0 3rem;
+  margin: 0 -2rem 2rem;
+  background: transparent;
+}
+
+.recent-profiles__header {
+  text-align: center;
+  padding: 0 1.5rem 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.recent-profiles__eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-bright, #3fb950);
+}
+
+.recent-profiles__title {
+  margin: 0;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.recent-profiles__title-line {
+  display: block;
+}
+
+.recent-profiles__title-line--accent {
+  color: var(--accent-bright, #3fb950);
+}
+
+.recent-profiles__sub {
+  margin: 1rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #8b949e;
+}
+
+.recent-profiles__signed-in {
+  margin: 1.25rem 0 0;
+  font-size: 0.85rem;
+  color: #484f58;
+}
+
+.recent-profiles__signed-in strong {
+  color: var(--accent-bright, #3fb950);
+}
+
+.recent-profiles__hint {
+  text-align: center;
+  margin: 2rem 0 0;
+  font-size: 0.8rem;
+  color: #484f58;
+  letter-spacing: 0.04em;
+}
+
+/* ── Flowing profile marquee ── */
+.profile-marquee {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+
+.profile-marquee__track-wrap {
+  overflow: hidden;
+  width: 100%;
+}
+
+.profile-marquee__track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  padding: 8px 0;
+}
+
+.profile-marquee__item {
+  flex-shrink: 0;
+  width: 300px;
+}
+
+/* ── GitHub profile card ── */
+.gh-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 1.1rem 1.15rem 1rem;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  background: #0d1117;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.gh-profile-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(63, 185, 80, 0.06) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.gh-profile-card:hover {
+  border-color: #3fb950;
+  box-shadow: 0 16px 40px rgba(35, 134, 54, 0.2), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.gh-profile-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.gh-profile-card__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #30363d;
+  background: #161b22;
+}
+
+.gh-profile-card__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gh-profile-card__name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #f0f6fc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-profile-card__login {
+  font-size: 0.78rem;
+  color: #8b949e;
+  font-family: ui-monospace, monospace;
+}
+
+.gh-profile-card__contrib-wrap {
+  position: relative;
+}
+
+.gh-profile-card__contrib-label {
+  display: block;
+  font-size: 0.68rem;
+  color: #484f58;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gh-contrib {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gh-contrib__row {
+  display: flex;
+  gap: 3px;
+}
+
+.gh-contrib__cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.gh-profile-card--compact .gh-contrib__cell {
+  width: 9px;
+  height: 9px;
+}
+
+.gh-profile-card__repo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #161b22;
+  font-size: 0.78rem;
+  position: relative;
+}
+
+.gh-profile-card__repo-icon {
+  color: #8b949e;
+  display: flex;
+}
+
+.gh-profile-card__repo-name {
+  color: #58a6ff;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.gh-profile-card__repo-vis {
+  font-size: 0.65rem;
+  color: #484f58;
+  border: 1px solid #30363d;
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+}
+
+.gh-profile-card__cta {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(1, 4, 9, 0.72);
+  backdrop-filter: blur(3px);
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-bright, #3fb950);
+  text-transform: uppercase;
+}
+
+/* ── Auth overrides for GitHub theme ── */
+.auth-page {
+  background: transparent;
+}
+
+.auth-box {
+  border-color: #30363d !important;
+  background: rgba(13, 17, 23, 0.92) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(63, 185, 80, 0.08) !important;
+}
+
+.auth-tab--active {
+  background: rgba(35, 134, 54, 0.2) !important;
+  color: var(--accent-bright, #3fb950) !important;
+}
+
+.auth-field input:focus {
+  border-color: rgba(63, 185, 80, 0.65) !important;
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.15) !important;
+}
+
+.auth-submit {
+  background: var(--accent-emphasis, #238636) !important;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--accent-hover, #2ea043) !important;
+}
+
+.auth-github-inline:hover {
+  border-color: #3fb950;
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.app-shell-wrap {
+  min-height: 100vh;
+}
+
+.app-shell-wrap .app-shell {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.oauth-callback-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oauth-callback-spinner {
+  border-color: rgba(63, 185, 80, 0.2) !important;
+  border-top-color: var(--accent-bright, #3fb950) !important;
+}
+
+/* App header — GitHub nav bar */
+.app-header {
+  background: rgba(13, 17, 23, 0.85) !important;
+  border-bottom: 1px solid #30363d !important;
+  backdrop-filter: blur(12px);
+}
+
+.app-brand h1 {
+  font-family: ui-monospace, monospace !important;
+  font-size: 1rem !important;
+  letter-spacing: -0.02em;
+  color: #f0f6fc !important;
+}
+
+.workspace-tabs {
+  background: #161b22 !important;
+  border: 1px solid #30363d !important;
+}
+
+.tab-btn.active {
+  background: rgba(35, 134, 54, 0.18) !important;
+  color: var(--accent-bright, #3fb950) !important;
+  box-shadow: none !important;
+}
+
+.tab-btn:hover {
+  color: #f0f6fc !important;
+}
+
+/* Dark scan card on black stage */
+.dashboard-shell--landing .dashboard-stage {
+  background: transparent;
+}
+
+.scan-card {
+  background: #0d1117 !important;
+  border: 1px solid #30363d !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5) !important;
+  color: #f0f6fc;
+}
+
+.scan-hero-title {
+  color: #f0f6fc !important;
+}
+
+.scan-hero-subtitle {
+  color: #8b949e !important;
+}
+
+.scan-input {
+  background: #010409 !important;
+  border: 1px solid #30363d !important;
+  color: #f0f6fc !important;
+}
+
+.scan-input:focus {
+  border-color: #3fb950 !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.15);
+}
+
+.btn-analyze {
+  background: var(--accent-emphasis, #238636) !important;
+}
+
+.btn-analyze:hover:not(:disabled) {
+  background: var(--accent-hover, #2ea043) !important;
+}
+
+/* Dark results panel */
+.results-panel .card,
+.results-panel .summary-card,
+.results-panel .plain-english-banner,
+.panel-pager-footer {
+  background: #0d1117 !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+.results-panel .card h2,
+.results-panel .summary-grid-title,
+.results-panel .plain-english-title,
+.results-panel .plain-english-lead,
+.results-panel .summary-value {
+  color: #f0f6fc !important;
+}
+
+.results-panel .card-hint,
+.results-panel .summary-label,
+.results-panel .plain-english-sub {
+  color: #8b949e !important;
+}
+
+.panel-header h2 {
+  color: #f0f6fc !important;
+}
+
+.side-rail {
+  background: #0d1117 !important;
+  border-color: #30363d !important;
+}
+
+.side-rail-logo {
+  background: var(--accent-emphasis, #238636) !important;
+}
+
+.side-rail-btn {
+  color: #8b949e !important;
+}
+
+.side-rail-btn.active {
+  background: rgba(35, 134, 54, 0.15) !important;
+  color: var(--accent-bright, #3fb950) !important;
+}
+
+.side-rail-label {
+  color: #f0f6fc !important;
+}
+
+.panel-pager-btn--next:not(:disabled) {
+  background: var(--accent-emphasis, #238636) !important;
+  border-color: var(--accent-emphasis, #238636) !important;
+}
+
+.compare-submit-btn {
+  background: #238636 !important;
+}
+
+.compare-submit-btn:hover:not(:disabled) {
+  background: #2ea043 !important;
+}
+
+.compare-vs-divider {
+  color: #3fb950 !important;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #238636, #3fb950) !important;
+}
+
+.filter-btn.active,
+.tab-btn.active,
+.pagination-btn:hover:not(:disabled) {
+  border-color: #3fb950 !important;
+}
+
+.app-main:not(:has(.dashboard-shell)) .card {
+  background: #0d1117 !important;
+  border-color: #30363d !important;
+  color: #f0f6fc !important;
+}
+
+@media (max-width: 768px) {
+  .recent-profiles {
+    margin: 0 -1rem 1.5rem;
+    padding-top: 4rem;
+  }
+
+  .profile-marquee__item {
+    width: 260px;
+  }
+}

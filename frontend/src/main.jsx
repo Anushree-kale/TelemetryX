@@ -5,6 +5,7 @@ import App from "./App";
 import "./index.css";
 import "./theme.css";
 import "./auth.css";
+import "./interface.css";
 
 document.documentElement.style.scrollBehavior = "smooth";
 

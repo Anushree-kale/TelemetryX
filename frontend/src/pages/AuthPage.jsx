@@ -6,8 +6,7 @@ import {
   signUpWithCredentials,
 } from "../auth";
 import BrandTitle from "../components/BrandTitle";
-import OrangeCat from "../components/OrangeCat";
-import VideoBackground from "../components/VideoBackground";
+import InterfaceBackground from "../components/InterfaceBackground";
 
 function GitHubIcon() {
   return (
@@ -20,16 +19,13 @@ function GitHubIcon() {
 export default function AuthPage({ mode = "login" }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const idleTimer = useRef(null);
   const [activeMode, setActiveMode] = useState(mode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
 
-  // Surface errors bounced back from OAuth redirect (e.g. ?error=github_denied)
   useEffect(() => {
     const oauthError = searchParams.get("error");
     if (oauthError === "github_denied")
@@ -37,18 +33,6 @@ export default function AuthPage({ mode = "login" }) {
     else if (oauthError === "github_failed")
       setError("GitHub login failed. Please try again.");
   }, [searchParams]);
-
-  const catMood = isTyping ? "watching" : "sleeping";
-
-  const resetIdleTimer = useCallback(() => {
-    setIsTyping(true);
-    clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => setIsTyping(false), 1200);
-  }, []);
-
-  useEffect(() => {
-    return () => clearTimeout(idleTimer.current);
-  }, []);
 
   useEffect(() => {
     setActiveMode(mode);
@@ -74,19 +58,13 @@ export default function AuthPage({ mode = "login" }) {
   const handleGitHub = () => {
     setError("");
     setGithubLoading(true);
-    loginWithGitHub(); // redirects browser — no return value
+    loginWithGitHub();
   };
 
   return (
-    <div className="auth-page">
-      <VideoBackground blurred variant="auth" />
-
+    <InterfaceBackground className="auth-page">
       <main className="auth-page__main">
         <div className="auth-box">
-          <div className="auth-box__cat">
-            <OrangeCat variant="sitting" mood={catMood} />
-          </div>
-
           <div className="auth-box__header">
             <BrandTitle size="md" />
             <p className="auth-box__subtitle">
@@ -129,11 +107,7 @@ export default function AuthPage({ mode = "login" }) {
                 type="text"
                 autoComplete="username"
                 value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  resetIdleTimer();
-                }}
-                onFocus={resetIdleTimer}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
 
@@ -146,11 +120,7 @@ export default function AuthPage({ mode = "login" }) {
                   activeMode === "signup" ? "new-password" : "current-password"
                 }
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  resetIdleTimer();
-                }}
-                onFocus={resetIdleTimer}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
@@ -162,11 +132,7 @@ export default function AuthPage({ mode = "login" }) {
                   type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    resetIdleTimer();
-                  }}
-                  onFocus={resetIdleTimer}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
             )}
@@ -191,6 +157,6 @@ export default function AuthPage({ mode = "login" }) {
           </form>
         </div>
       </main>
-    </div>
+    </InterfaceBackground>
   );
 }
