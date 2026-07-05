@@ -492,65 +492,6 @@ h1 {
   color: #8b9cb3;
 }
 
-/* Heatmap Toolbar and Controls */
-.heatmap-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.heatmap-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #1e2a3a;
-}
-
-.heatmap-legend {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.legend-label {
-  font-size: 0.85rem;
-  color: #8b9cb3;
-  font-weight: 500;
-}
-
-.legend-gradient {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.legend-text {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-.gradient-bar {
-  width: 120px;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, hsl(140, 70%, 42%) 0%, hsl(45, 70%, 42%) 40%, hsl(0, 70%, 42%) 100%);
-}
-
-.heatmap-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: #8b9cb3;
-  font-size: 0.95rem;
-  border: 1px dashed #2a3548;
-  border-radius: 8px;
-  background: #0f1419;
-}
-
 /* Workspace Tabs */
 .app-header-container {
   display: flex;
