@@ -4,7 +4,7 @@ const PHASES = [
   "Cloning repository",
   "Building AST + call graph",
   "Causal commit analysis (SZZ)",
-  "Scoring failure risk (LSTM)",
+  "Scoring failure risk (XGBoost)",
   "Ranking remediation targets",
 ];
 

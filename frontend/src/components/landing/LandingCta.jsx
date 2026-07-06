@@ -21,7 +21,7 @@ export default function LandingCta() {
           <ul>
             <li>React + Vite</li>
             <li>Python / FastAPI</li>
-            <li>PyTorch LSTM</li>
+            <li>XGBoost</li>
           </ul>
         </div>
         <div className="landing-cta__col">
