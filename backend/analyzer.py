@@ -1,10 +1,15 @@
 import ast
+import os
 import re
 import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+MAX_ANALYZED_FILES = int(os.getenv("ANALYZER_MAX_FILES", "2000"))
+MAX_GIT_COMMITS = int(os.getenv("ANALYZER_MAX_COMMITS", "2500"))
+GIT_CLONE_DEPTH = int(os.getenv("GIT_CLONE_DEPTH", "500"))
 
 import lizard
 from git import Repo
@@ -15,7 +20,10 @@ from dfg_analyzer import analyze_dataflow
 
 def clone_repo(repo_url: str) -> tuple[str, Repo]:
     tmp_dir = tempfile.mkdtemp(prefix="telemetryx_")
-    repo = Repo.clone_from(repo_url, tmp_dir)
+    clone_kwargs: dict[str, Any] = {}
+    if GIT_CLONE_DEPTH > 0:
+        clone_kwargs["depth"] = GIT_CLONE_DEPTH
+    repo = Repo.clone_from(repo_url, tmp_dir, **clone_kwargs)
     return tmp_dir, repo
 
 
@@ -321,7 +329,7 @@ def extract_git_signals(
     since_90d = datetime.now(timezone.utc) - timedelta(days=90)
 
     try:
-        all_commits = list(git_repo.iter_commits("HEAD"))
+        all_commits = list(git_repo.iter_commits("HEAD", max_count=MAX_GIT_COMMITS))
     except Exception:
         return {}, []
 
@@ -430,6 +438,7 @@ IGNORED_DIRS = {
     ".env",
     "myenv",
     "node_modules",
+    "vendor",
     "__pycache__",
     "dist",
     "build",
@@ -441,6 +450,8 @@ IGNORED_DIRS = {
     ".vscode",
     ".next",
     "site-packages",
+    "coverage",
+    "testdata",
 }
 
 
@@ -475,14 +486,15 @@ def analyze_source_files(
     """
     root = Path(repo_path)
     all_files = []
-    for ext in SUPPORTED_EXTENSIONS:
+    for ext in ENTERPRISE_SOURCE_EXTENSIONS:
         all_files.extend(root.rglob(f"*{ext}"))
 
-    source_files = [
-        p
-        for p in all_files
-        if not should_ignore_path(p)
-    ]
+    source_files = sorted(
+        {p for p in all_files if not should_ignore_path(p)},
+        key=lambda p: str(p).lower(),
+    )
+    if len(source_files) > MAX_ANALYZED_FILES:
+        source_files = source_files[:MAX_ANALYZED_FILES]
     git_signals: dict[str, dict[str, Any]] = {}
     co_change_pairs: list[dict[str, Any]] = []
     if git_repo:

@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AnalyzeForm from "./AnalyzeForm";
 import MetricsChart from "./MetricsChart";
 import ModulesTable from "./ModulesTable";
-import SummaryCards from "./SummaryCards";
 import RoadmapTab from "./RoadmapTab";
 import GraphTab from "./GraphTab";
 import ClustersTab from "./ClustersTab";
@@ -10,21 +9,16 @@ import CoChangeTab from "./CoChangeTab";
 import HistoryTrends from "./HistoryTrends";
 import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
-import OverviewScorecard from "./OverviewScorecard";
-import TopDebtModules from "./TopDebtModules";
-import PanelPager from "./PanelPager";
-import ResultsOverviewBanner from "./ResultsOverviewBanner";
 import PrivacyTab from "./PrivacyTab";
-import SectionHint from "./SectionHint";
-import SideNav from "./SideNav";
-import OrangeCat from "./OrangeCat";
+import { SectionHint } from "./appPrimitives";
 import RecentProfilesPicker from "./RecentProfilesPicker";
 import FailureRiskTab from "./FailureRiskTab";
+import WorkspaceTopbar from "./WorkspaceTopbar";
+import ScanView from "./ScanView";
+import WorkspaceOverview from "./WorkspaceOverview";
 import { PANEL_TITLES } from "../labels";
 import ExportButton from "./ExportButton";
-import { SummaryCardsSkeleton, ModulesTableSkeleton } from "./Skeletons";
 
-/** landing → scanning → results → sidebar-ready */
 export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, onChromeVisibilityChange }) {
   const [activePanel, setActivePanel] = useState("overview");
   const [modules, setModules] = useState([]);
@@ -33,32 +27,13 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
   const [currentJobId, setCurrentJobId] = useState(null);
   const [modulesLoading, setModulesLoading] = useState(true);
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [uiPhase, setUiPhase] = useState("idle");
+  const [showProfiles, setShowProfiles] = useState(false);
+  const [scanProgress, setScanProgress] = useState({ pct: 0, message: "" });
 
-  const [uiPhase, setUiPhase] = useState("landing");
-  const [repoSelected, setRepoSelected] = useState(false);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [catPhase, setCatPhase] = useState("on-card");
-  const walkTimerRef = useRef(null);
-  const scanSectionRef = useRef(null);
-
-  const handleRepoSelect = useCallback((repoName) => {
-    setRepoSelected(true);
-    const url = /^https?:\/\//i.test(repoName)
-      ? repoName
-      : `https://github.com/${repoName}`;
-
-    scanSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    window.setTimeout(() => {
-      const input = scanSectionRef.current?.querySelector('input[name="repo_url"]');
-      if (!input) return;
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      if (setter) setter.call(input, url);
-      else input.value = url;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.focus();
-    }, 450);
-  }, []);
+  useEffect(() => {
+    onChromeVisibilityChange?.(true);
+  }, [onChromeVisibilityChange]);
 
   const loadJobResults = useCallback(
     async (jobId) => {
@@ -73,8 +48,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
       setStatus(data.status ?? null);
       if (list.length > 0) {
         setUiPhase("results");
-        setSidebarExpanded(true);
-        setCatPhase("on-sidebar");
       }
       return true;
     },
@@ -84,13 +57,12 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
   const fetchLatestJob = useCallback(async () => {
     setModulesLoading(true);
     try {
-      const res = await fetch(`${apiBase}/modules`);
+      const res = await fetch(`${apiBase}/jobs/latest`);
       if (!res.ok) return;
-      const list = (await res.json()).modules || [];
-      if (!list.length) return;
-      const latestJobId = Math.max(...list.map((m) => m.job_id).filter(Boolean));
-      setCurrentJobId(latestJobId);
-      await loadJobResults(latestJobId);
+      const data = await res.json();
+      if (!data.job_id) return;
+      setCurrentJobId(data.job_id);
+      await loadJobResults(data.job_id);
     } catch {
       /* ignore */
     } finally {
@@ -100,18 +72,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
 
   useEffect(() => {
     fetchLatestJob();
-    return () => {
-      if (walkTimerRef.current) clearTimeout(walkTimerRef.current);
-    };
   }, [fetchLatestJob]);
-
-  const startCatWalk = useCallback(() => {
-    setCatPhase("walking");
-    walkTimerRef.current = setTimeout(() => {
-      setSidebarExpanded(true);
-      setCatPhase("on-sidebar");
-    }, 1600);
-  }, []);
 
   const handleAnalysisComplete = (result) => {
     setModules(result.modules || []);
@@ -122,94 +83,57 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
     onReposChanged?.();
     setActivePanel("overview");
     setUiPhase("results");
-    if (result.modules?.length) {
-      startCatWalk();
-    }
+    setShowProfiles(false);
+    setScanProgress({ pct: 100, message: "" });
   };
 
   const handleAnalyzeStart = (enabledPrivacy = false) => {
     setUiPhase("scanning");
-    setCatPhase("on-card");
-    setSidebarExpanded(false);
     setPrivacyMode(!!enabledPrivacy);
+    setScanProgress({ pct: 0, message: "Submitting analysis…" });
+  };
+
+  const handleNewScan = () => {
+    setUiPhase("idle");
+    setActivePanel("overview");
+    setStatus(null);
+    setScanProgress({ pct: 0, message: "" });
   };
 
   const isAnalyzing = status === "pending" || status === "running";
   const activeRepoUrl = repoUrl || modules[0]?.repo_url;
   const jobId = currentJobId ?? modules[0]?.job_id;
-  const showResultsSkeleton = modulesLoading || isAnalyzing;
   const hasModules = modules.length > 0;
-  const showResults = uiPhase === "results" && hasModules && !showResultsSkeleton;
-  const scanCompact = uiPhase === "scanning" || uiPhase === "results";
-  const showWorkspaceChrome = repoSelected || hasModules || uiPhase !== "landing";
-
-  useEffect(() => {
-    onChromeVisibilityChange?.(showWorkspaceChrome);
-  }, [showWorkspaceChrome, onChromeVisibilityChange]);
+  const showResults = uiPhase === "results" && hasModules && !modulesLoading && !isAnalyzing;
+  const showScan = uiPhase === "scanning" || (isAnalyzing && !showResults);
+  const showIdle = !showResults && !showScan && !modulesLoading;
 
   const handleStatusChange = (s) => {
     setStatus(s);
     if (s === "failed") {
-      setUiPhase("landing");
-      setRepoSelected(false);
-      setCatPhase("on-card");
-      setSidebarExpanded(false);
+      setUiPhase("idle");
     }
   };
 
-  const overviewPages = [
-    <>
-      <ResultsOverviewBanner modules={modules} repoUrl={activeRepoUrl} />
-      <OverviewScorecard
-        modules={modules}
-        repoUrl={activeRepoUrl}
-        jobId={jobId}
-        apiBase={apiBase}
-        onNavigate={setActivePanel}
-      />
-    </>,
-    <SummaryCards modules={modules} repoUrl={activeRepoUrl} apiBase={apiBase} />,
-    <div className="card">
-      <div className="card-heading-row">
-        <h2>Top debt modules</h2>
-        <SectionHint label="Debt ranking">
-          <p>
-            Highest predicted debt scores from the XGBoost model. Use this ranked view to
-            prioritize remediation before diving into individual files.
-          </p>
-        </SectionHint>
-      </div>
-      <TopDebtModules modules={modules} />
-    </div>,
-  ];
-
   return (
-    <div className={`dashboard-shell${showWorkspaceChrome ? "" : " dashboard-shell--landing"}`}>
-      {showWorkspaceChrome && (
-        <SideNav
-          activePanel={activePanel}
-          onSelect={setActivePanel}
-          expanded={sidebarExpanded}
-          disabled={!hasModules}
-          showCat={catPhase === "on-sidebar"}
-        />
-      )}
+    <div className="tx-frame">
+      <WorkspaceTopbar
+        activePanel={activePanel}
+        onSelect={setActivePanel}
+        disabled={!hasModules}
+        uiPhase={uiPhase}
+        status={status}
+      />
 
-      <div className="dashboard-stage">
-        {uiPhase === "landing" && (
-          <RecentProfilesPicker repoList={repoList} onRepoSelect={handleRepoSelect} />
-        )}
-
-        <section
-          ref={scanSectionRef}
-          className={`scan-stage ${scanCompact ? "scan-stage--compact" : "scan-stage--centered"}`}
-        >
-          <div className="scan-card">
-            {catPhase === "on-card" && (
-              <div className="scan-card-cat">
-                <OrangeCat variant="sitting" />
-              </div>
-            )}
+      <div className="tx-stage">
+        {showIdle && (
+          <div className="tx-view tx-view--idle">
+            <p className="tx-eyebrow">// REPOSITORY DIAGNOSTICS</p>
+            <h1 className="tx-hero-title">POINT THIS AT ANY PUBLIC REPO</h1>
+            <p className="tx-hero-sub">
+              Static analysis, causal commit history, and failure-risk scoring — surfaced the
+              moment the scan finishes, not scrolled to.
+            </p>
 
             <AnalyzeForm
               apiBase={apiBase}
@@ -217,148 +141,193 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
               onComplete={handleAnalysisComplete}
               onStatusChange={handleStatusChange}
               onAnalyzeStart={handleAnalyzeStart}
-              compact={scanCompact}
+              onProgressChange={setScanProgress}
+              variant="v2"
             />
-          </div>
-        </section>
 
-        {catPhase === "walking" && (
-          <div className="cat-walker" aria-hidden>
-            <OrangeCat variant="walking" />
+            <div className="tx-idle-footer">
+              <button
+                type="button"
+                className="tx-link-btn"
+                onClick={() => setShowProfiles((v) => !v)}
+                aria-expanded={showProfiles}
+              >
+                {showProfiles ? "Hide profile browser" : "Or browse who's shipping"}
+              </button>
+            </div>
+
+            {showProfiles && (
+              <div className="tx-profiles-wrap">
+                <RecentProfilesPicker
+                  repoList={repoList}
+                  onRepoSelect={(name) => {
+                    const url = /^https?:\/\//i.test(name)
+                      ? name
+                      : `https://github.com/${name}`;
+                    const input = document.querySelector('.analyze-form--v2 input[name="repo_url"]');
+                    if (input) {
+                      const setter = Object.getOwnPropertyDescriptor(
+                        HTMLInputElement.prototype,
+                        "value",
+                      )?.set;
+                      if (setter) setter.call(input, url);
+                      else input.value = url;
+                      input.dispatchEvent(new Event("input", { bubbles: true }));
+                      input.focus();
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
 
-        {showResultsSkeleton && uiPhase !== "landing" && (
-          <div className="results-loading">
-            <SummaryCardsSkeleton />
-            <ModulesTableSkeleton />
-          </div>
+        {showScan && (
+          <ScanView
+            progressPct={scanProgress.pct}
+            progressMessage={scanProgress.message}
+          />
         )}
 
-        {showResults && (
-          <div className="results-panel">
-            <header className="panel-header">
-              <div className="panel-header-title">
-                <h2>{PANEL_TITLES[activePanel]}</h2>
-                {privacyMode && (
-                  <span className="privacy-badge" title="Differential privacy (DP engine) is enabled for this analysis">
-                    <span className="privacy-badge-icon" aria-hidden>🛡️</span>
-                    Privacy active
-                  </span>
-                )}
+        {showResults && activePanel === "overview" && (
+          <WorkspaceOverview
+            modules={modules}
+            repoUrl={activeRepoUrl}
+            jobId={jobId}
+            apiBase={apiBase}
+            onNavigate={setActivePanel}
+            onNewScan={handleNewScan}
+            privacyMode={privacyMode}
+          />
+        )}
+
+        {showResults && activePanel !== "overview" && (
+          <div className="tx-view tx-view--results show">
+            <div className="tx-res-head">
+              <div className="tx-res-repo">
+                // {PANEL_TITLES[activePanel].toUpperCase()} &nbsp;·&nbsp;{" "}
+                <b>{activeRepoUrl?.replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\.git$/, "")}</b>
               </div>
-              <ExportButton jobId={jobId} apiBase={apiBase} />
-            </header>
-
-            {activePanel === "overview" && (
-              <PanelPager
-                pages={overviewPages}
-                resetKey={`overview-${jobId}`}
-                ariaLabel="Overview pages"
-              />
-            )}
-
-            {activePanel === "fixes" && jobId && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Remediation plan</h2>
-                  <SectionHint label="Remediation">
-                    <p>
-                      Prioritized work items. Use <strong>Copy for Jira</strong> to export title and
-                      acceptance criteria to your issue tracker.
-                    </p>
-                  </SectionHint>
-                </div>
-                <RoadmapTab jobId={jobId} apiBase={apiBase} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <ExportButton jobId={jobId} apiBase={apiBase} />
+                <button type="button" className="tx-btn-ghost" onClick={handleNewScan}>
+                  NEW SCAN
+                </button>
               </div>
-            )}
+            </div>
 
-            {activePanel === "charts" && (
-              <>
-                <HistoryTrends repoUrl={activeRepoUrl} apiBase={apiBase} />
-                <LanguageBreakdown modules={modules} />
-                {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
+            <div className="tx-panel-detail">
+              {activePanel === "fixes" && jobId && (
                 <div className="card">
                   <div className="card-heading-row">
-                    <h2>Highest cyclomatic complexity</h2>
-                    <SectionHint label="Complexity">
+                    <h2>Remediation plan</h2>
+                    <SectionHint label="Remediation">
                       <p>
-                        Branching complexity by file. Elevated values indicate higher testing and
-                        review effort.
+                        Prioritized work items. Use <strong>Copy for Jira</strong> to export title
+                        and acceptance criteria to your issue tracker.
                       </p>
                     </SectionHint>
                   </div>
-                  <MetricsChart modules={modules} />
+                  <RoadmapTab jobId={jobId} apiBase={apiBase} />
                 </div>
-              </>
-            )}
+              )}
 
-            {activePanel === "failure" && jobId && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Failure risk prediction</h2>
-                  <SectionHint label="Failure risk">
-                    <p>
-                      LSTM risk scores. Predicts likelihood of future bugs and failures based on churn, complexity, and commit cadence.
-                    </p>
-                  </SectionHint>
+              {activePanel === "charts" && (
+                <>
+                  <HistoryTrends repoUrl={activeRepoUrl} apiBase={apiBase} />
+                  <LanguageBreakdown modules={modules} />
+                  {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
+                  <div className="card">
+                    <div className="card-heading-row">
+                      <h2>Highest cyclomatic complexity</h2>
+                      <SectionHint label="Complexity">
+                        <p>
+                          Branching complexity by file. Elevated values indicate higher testing and
+                          review effort.
+                        </p>
+                      </SectionHint>
+                    </div>
+                    <MetricsChart modules={modules} />
+                  </div>
+                </>
+              )}
+
+              {activePanel === "failure" && jobId && (
+                <div className="card">
+                  <div className="card-heading-row">
+                    <h2>Failure risk prediction</h2>
+                    <SectionHint label="Failure risk">
+                      <p>
+                        LSTM risk scores. Predicts likelihood of future bugs and failures based on
+                        churn, complexity, and commit cadence.
+                      </p>
+                    </SectionHint>
+                  </div>
+                  <FailureRiskTab jobId={jobId} apiBase={apiBase} modules={modules} />
                 </div>
-                <FailureRiskTab jobId={jobId} apiBase={apiBase} modules={modules} />
-              </div>
-            )}
+              )}
 
-            {activePanel === "privacy" && jobId && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Privacy &amp; Synthesis Compliance</h2>
-                  <SectionHint label="Privacy &amp; Synthesis">
-                    <p>
-                      Calibrated differential privacy metrics, contributor PII stripping, and tabular GMM / time-series LSTM synthesis validation. Image VAE synthesis is not part of this release.
-                    </p>
-                  </SectionHint>
+              {activePanel === "privacy" && jobId && (
+                <div className="card">
+                  <div className="card-heading-row">
+                    <h2>Privacy &amp; Synthesis Compliance</h2>
+                    <SectionHint label="Privacy &amp; Synthesis">
+                      <p>
+                        Calibrated differential privacy metrics, contributor PII stripping, and
+                        tabular GMM / time-series LSTM synthesis validation.
+                      </p>
+                    </SectionHint>
+                  </div>
+                  <PrivacyTab jobId={jobId} apiBase={apiBase} />
                 </div>
-                <PrivacyTab jobId={jobId} apiBase={apiBase} />
-              </div>
-            )}
+              )}
 
-            {activePanel === "files" && (
-              <div className="card">
-                <div className="card-heading-row">
-                  <h2>Module inventory</h2>
-                  <SectionHint label="Table">
-                    <p>
-                      Select a row for drivers, git metrics, graph position, and co-change
-                      partners. Column headers include definitions.
-                    </p>
-                  </SectionHint>
+              {activePanel === "files" && (
+                <div className="card">
+                  <div className="card-heading-row">
+                    <h2>Module inventory</h2>
+                    <SectionHint label="Table">
+                      <p>
+                        Select a row for drivers, git metrics, graph position, and co-change
+                        partners.
+                      </p>
+                    </SectionHint>
+                  </div>
+                  <ModulesTable modules={modules} />
                 </div>
-                <ModulesTable modules={modules} />
-              </div>
-            )}
+              )}
 
-            {activePanel === "graph" && jobId && (
-              <div className="card">
-                <h2>Dependency graph</h2>
-                <p className="card-hint">Import relationships between modules.</p>
-                <GraphTab jobId={jobId} apiBase={apiBase} />
-              </div>
-            )}
+              {activePanel === "graph" && jobId && (
+                <div className="card">
+                  <h2>Dependency graph</h2>
+                  <p className="card-hint">Import relationships between modules.</p>
+                  <GraphTab jobId={jobId} apiBase={apiBase} />
+                </div>
+              )}
 
-            {activePanel === "clusters" && jobId && (
-              <div className="card">
-                <h2>Module clusters</h2>
-                <p className="card-hint">Groups of related files in the dependency structure.</p>
-                <ClustersTab jobId={jobId} apiBase={apiBase} />
-              </div>
-            )}
+              {activePanel === "clusters" && jobId && (
+                <div className="card">
+                  <h2>Module clusters</h2>
+                  <p className="card-hint">Groups of related files in the dependency structure.</p>
+                  <ClustersTab jobId={jobId} apiBase={apiBase} />
+                </div>
+              )}
 
-            {activePanel === "cochange" && jobId && (
-              <div className="card">
-                <h2>Co-change analysis</h2>
-                <p className="card-hint">Files frequently modified in the same commits.</p>
-                <CoChangeTab jobId={jobId} apiBase={apiBase} />
-              </div>
-            )}
+              {activePanel === "cochange" && jobId && (
+                <div className="card">
+                  <h2>Co-change analysis</h2>
+                  <p className="card-hint">Files frequently modified in the same commits.</p>
+                  <CoChangeTab jobId={jobId} apiBase={apiBase} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {modulesLoading && !showResults && !showScan && (
+          <div className="tx-view tx-view--scan">
+            <p className="tx-eyebrow">// LOADING</p>
+            <p className="tx-scan-message">Checking for previous scans…</p>
           </div>
         )}
       </div>

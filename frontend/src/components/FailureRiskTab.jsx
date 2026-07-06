@@ -9,7 +9,7 @@ import {
   Cell,
   CartesianGrid,
 } from "recharts";
-import PanelPager from "./PanelPager";
+import { PanelPager } from "./appPrimitives";
 import ModuleDetailDrawer from "./ModuleDetailDrawer";
 
 const POLL_INTERVAL_MS = 2000;

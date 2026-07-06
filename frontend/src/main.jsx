@@ -7,6 +7,7 @@ import "./theme.css";
 import "./auth.css";
 import "./interface.css";
 import "./landing.css";
+import "./app-workspace.css";
 
 document.documentElement.style.scrollBehavior = "smooth";
 

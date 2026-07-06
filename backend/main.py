@@ -188,6 +188,20 @@ def analyze_repo_endpoint(body: AnalyzeRequest):
     )
 
 
+@app.get("/jobs/latest")
+def get_latest_job():
+    job = database.get_latest_completed_job()
+    if not job:
+        return {"job_id": None, "status": "empty"}
+    return {
+        "job_id": job["id"],
+        "repo_url": job["repo_url"],
+        "status": job["status"],
+        "created_at": job["created_at"].isoformat() if job["created_at"] else None,
+        "privacy_mode": job.get("privacy_mode", False),
+    }
+
+
 @app.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
 def get_job_status(job_id: int):
     job = database.get_job(job_id)

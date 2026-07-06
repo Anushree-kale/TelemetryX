@@ -3,7 +3,6 @@ import CompareWorkspace from "./components/CompareWorkspace";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
 import InterfaceBackground from "./components/InterfaceBackground";
-import { APP_TAGLINE } from "./labels";
 import { apiFetch } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -11,7 +10,6 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function AppShell() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [repoList, setRepoList] = useState([]);
-  const [showDashboardChrome, setShowDashboardChrome] = useState(false);
 
   const refreshRepoList = useCallback(() => {
     apiFetch(API_BASE, "/repos")
@@ -26,18 +24,15 @@ export default function AppShell() {
     refreshRepoList();
   }, [refreshRepoList]);
 
-  const isDashboard = activeTab === "dashboard";
-
   return (
     <InterfaceBackground className="app-shell-wrap">
-      <div className={`app-shell${isDashboard ? " app-shell--dashboard" : ""}${isDashboard && !showDashboardChrome ? " app-shell--landing" : ""}`}>
+      <div className="app-shell app-shell--dashboard">
         <header className="app-header">
           <div className="app-brand">
+            <span className="app-brand-mark">TX</span>
             <h1>TelemetryX</h1>
-            <p className="subtitle">{APP_TAGLINE}</p>
           </div>
-          {( !isDashboard || showDashboardChrome) && (
-            <div className="workspace-tabs">
+          <div className="workspace-tabs">
             <button
               type="button"
               className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
@@ -59,8 +54,7 @@ export default function AppShell() {
             >
               Hooks &amp; model
             </button>
-            </div>
-          )}
+          </div>
         </header>
 
         <main className="app-main">
@@ -69,7 +63,6 @@ export default function AppShell() {
               apiBase={API_BASE}
               repoList={repoList}
               onReposChanged={refreshRepoList}
-              onChromeVisibilityChange={setShowDashboardChrome}
             />
           )}
 

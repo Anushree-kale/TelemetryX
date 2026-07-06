@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import SectionHint from "./SectionHint";
+import { SectionHint } from "./appPrimitives";
 
 const MiniGauge = ({ percentage, color, label, sublabel }) => {
   const radius = 35;

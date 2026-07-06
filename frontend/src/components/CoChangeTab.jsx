@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import PanelPager from "./PanelPager";
+import { PanelPager } from "./appPrimitives";
 
 const ROWS_PER_PAGE = 18;
 

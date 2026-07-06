@@ -781,6 +781,21 @@ def get_repo_urls_list() -> list[str]:
         return [r[0] for r in cur.fetchall()]
 
 
+def get_latest_completed_job() -> dict[str, Any] | None:
+    with get_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """
+            SELECT id, repo_url, created_at, status, privacy_mode
+            FROM analysis_jobs
+            WHERE status = 'complete'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
 def get_last_completed_job_for_repo(repo_url: str) -> dict[str, Any] | None:
     with get_cursor(dict_cursor=True) as cur:
         cur.execute(

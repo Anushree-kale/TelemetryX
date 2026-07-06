@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import ProgressBar from "./ProgressBar";
+import { ProgressBar } from "./appPrimitives";
 import { apiFetch } from "../api";
 
 const POLL_INTERVAL_MS = 1500;
@@ -11,7 +11,8 @@ export default function AnalyzeForm({
   onStatusChange,
   onAnalyzeStart,
   onPrivacyModeChange,
-  compact = false,
+  onProgressChange,
+  variant = "default",
 }) {
   const [repoUrl, setRepoUrl] = useState("");
   const [privacyMode, setPrivacyMode] = useState(false);
@@ -19,6 +20,10 @@ export default function AnalyzeForm({
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState({ pct: 0, message: "" });
   const pollRef = useRef(null);
+
+  const isV2 = variant === "v2";
+  const isCommand = variant === "command" || isV2;
+  const isCompact = variant === "compact" || isCommand;
 
   const stopPolling = () => {
     if (pollRef.current) {
@@ -35,10 +40,12 @@ export default function AnalyzeForm({
           if (!res.ok) throw new Error("Failed to fetch job status");
           const data = await res.json();
           onStatusChange?.(data.status);
-          setProgress({
+          const next = {
             pct: data.progress_pct ?? 0,
             message: data.progress_message || "",
-          });
+          };
+          setProgress(next);
+          onProgressChange?.(next);
 
           if (data.status === "complete") {
             stopPolling();
@@ -71,7 +78,9 @@ export default function AnalyzeForm({
     }
 
     setLoading(true);
-    setProgress({ pct: 0, message: "Submitting analysis…" });
+    const initial = { pct: 0, message: "Submitting analysis…" };
+    setProgress(initial);
+    onProgressChange?.(initial);
     onStatusChange?.("pending");
     onAnalyzeStart?.(privacyMode);
     onPrivacyModeChange?.(privacyMode);
@@ -115,8 +124,19 @@ export default function AnalyzeForm({
   const recentRepos = Array.isArray(knownRepos) ? knownRepos.slice(0, 8) : [];
 
   return (
-    <form onSubmit={handleSubmit} className={compact ? "analyze-form analyze-form--compact" : "analyze-form"}>
-      {!compact && (
+    <form
+      onSubmit={handleSubmit}
+      className={
+        isV2
+          ? "analyze-form analyze-form--v2"
+          : isCommand
+            ? "analyze-form analyze-form--command"
+            : isCompact
+              ? "analyze-form analyze-form--compact"
+              : "analyze-form"
+      }
+    >
+      {!isCompact && (
         <>
           <h1 className="scan-hero-title">Analyse your repository</h1>
           <p className="scan-hero-subtitle">
@@ -125,7 +145,7 @@ export default function AnalyzeForm({
         </>
       )}
 
-      <div className="scan-input-row">
+      <div className={isV2 ? "tx-scan-input-row" : "scan-input-row"}>
         <input
           type="url"
           name="repo_url"
@@ -143,11 +163,11 @@ export default function AnalyzeForm({
           ))}
         </datalist>
         <button type="submit" disabled={loading} className="btn-primary btn-analyze">
-          {loading ? "Analysing…" : "Analyze"}
+          {loading ? "Analysing…" : isV2 ? "ANALYZE" : "Analyze"}
         </button>
       </div>
 
-      <div className="privacy-toggle-row" style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div className="privacy-toggle-row">
         <input
           type="checkbox"
           id="privacyMode"
@@ -155,22 +175,20 @@ export default function AnalyzeForm({
           onChange={(e) => setPrivacyMode(e.target.checked)}
           disabled={loading}
         />
-        <label htmlFor="privacyMode" style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-          Enable Synthetic Privacy (DP Engine)
-        </label>
+        <label htmlFor="privacyMode">Enable Synthetic Privacy (DP Engine)</label>
       </div>
 
-      {recentRepos.length > 0 && !compact && (
-        <div className="known-repos-chips">
-          <span className="known-repos-label">Recent:</span>
-          <div className="known-repos-buttons">
+      {recentRepos.length > 0 && (
+        <div className={isV2 ? "tx-chips known-repos-chips" : "known-repos-chips"}>
+          {!isV2 && <span className="known-repos-label">Recent:</span>}
+          <div className={isV2 ? "known-repos-buttons" : "known-repos-buttons"}>
             {recentRepos.map((url) => {
               const short = url.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
               return (
                 <button
                   key={url}
                   type="button"
-                  className="repo-chip"
+                  className={isV2 ? "tx-chip repo-chip" : "repo-chip"}
                   disabled={loading}
                   title={url}
                   onClick={() => setRepoUrl(url)}
@@ -183,7 +201,7 @@ export default function AnalyzeForm({
         </div>
       )}
 
-      {loading && (
+      {loading && !isV2 && (
         <div className="analyze-progress-block">
           <ProgressBar pct={progress.pct} message={progress.message} />
         </div>

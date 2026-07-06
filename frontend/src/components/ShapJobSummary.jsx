@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import SectionHint from "./SectionHint";
+import { SectionHint } from "./appPrimitives";
 import { SHAP_PLAIN } from "../labels";
 
 const FEATURE_PLAIN = SHAP_PLAIN;
