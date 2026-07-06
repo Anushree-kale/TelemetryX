@@ -518,6 +518,13 @@ def get_module_by_id(module_id: int) -> dict[str, Any] | None:
         return _parse_module_row(dict(row)) if row else None
 
 
+def get_job_module(job_id: int, module_id: int) -> dict[str, Any] | None:
+    module = get_module_by_id(module_id)
+    if not module or module.get("job_id") != job_id:
+        return None
+    return _attach_reasons([module])[0]
+
+
 def insert_co_change_pairs(job_id: int, pairs: list[dict[str, Any]]) -> None:
     if not pairs:
         return

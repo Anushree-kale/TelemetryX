@@ -1,4 +1,7 @@
 from contextlib import asynccontextmanager
+import hashlib
+import hmac
+import json
 import os
 from pathlib import Path
 from urllib.parse import unquote
@@ -17,7 +20,7 @@ import post_analysis
 import oauth as oauth_service
 import jwt_service
 from debt_model import MODEL_PATH, get_scorer
-from failure_predictor import load_failure_model
+from explain import reasons_to_text
 from graph_builder import graph_from_stored_json
 from tasks import analyze_repo_task
 
@@ -29,7 +32,6 @@ async def lifespan(_: FastAPI):
     config.require_api_keys_at_startup()
     scorer = get_scorer()
     scorer.load()
-    load_failure_model()
     yield
 
 
@@ -56,13 +58,11 @@ app.add_middleware(auth.ApiKeyMiddleware)
 
 class AnalyzeRequest(BaseModel):
     repo_url: HttpUrl
-    privacy_mode: bool = False
 
 
 class AnalyzeResponse(BaseModel):
     job_id: int
     status: str
-    privacy_mode: bool = False
 
 
 class JobStatusResponse(BaseModel):
@@ -179,13 +179,9 @@ def health_check():
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_repo_endpoint(body: AnalyzeRequest):
     repo_url = str(body.repo_url)
-    job_id = database.create_job(repo_url, privacy_mode=body.privacy_mode)
-    analyze_repo_task.delay(job_id, repo_url, privacy_mode=body.privacy_mode)
-    return AnalyzeResponse(
-        job_id=job_id,
-        status="pending",
-        privacy_mode=body.privacy_mode,
-    )
+    job_id = database.create_job(repo_url)
+    analyze_repo_task.delay(job_id, repo_url)
+    return AnalyzeResponse(job_id=job_id, status="pending")
 
 
 @app.get("/jobs/latest")
@@ -345,53 +341,27 @@ def get_job_co_changes(job_id: int):
     return {"job_id": job_id, "pairs": pairs, "pair_count": len(pairs)}
 
 
-@app.get("/jobs/{job_id}/shap-summary")
-def get_job_shap_summary(job_id: int):
-    job = database.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    rows = database.get_job_shap_aggregate(job_id)
-    return {"job_id": job_id, "features": rows}
-
-
-@app.get("/jobs/{job_id}/failure-risk")
-def get_job_failure_risk(job_id: int):
-    job = database.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    preds = database.get_job_failure_predictions(job_id)
-    if not preds:
-        return {
-            "status": "pending",
-            "job_id": job_id,
-            "predictions": []
-        }
-    
-    return {
-        "status": "complete",
-        "job_id": job_id,
-        "predictions": preds
-    }
-
-
-@app.get("/jobs/{job_id}/failure-risk/{module_id}/explain")
-def get_failure_risk_explanation(job_id: int, module_id: int):
+@app.get("/jobs/{job_id}/modules/{module_id}/risk-explanation")
+def get_module_risk_explanation(job_id: int, module_id: int):
+    """Unified per-file 'why is this risky' response (debt model + code-grounded text)."""
     job = database.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    prediction = database.get_failure_prediction_explanation(job_id, module_id)
-    if not prediction:
-        raise HTTPException(status_code=404, detail="No failure prediction found for this module")
+    module = database.get_job_module(job_id, module_id)
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found in this job")
 
+    drivers = module.get("reasons", [])
     return {
         "job_id": job_id,
         "module_id": module_id,
-        "file_path": prediction["file_path"],
-        "risk_score": prediction["risk_score"],
-        "risk_level": prediction["risk_level"],
-        "explanation": prediction.get("failure_explanation", []),
+        "file_path": module["file_path"],
+        "debt_score": module.get("debt_score"),
+        "risk_level": module.get("risk_level"),
+        "drivers": drivers,
+        "explanation": reasons_to_text(drivers, module),
+        "job_drivers": database.get_job_shap_aggregate(job_id),
     }
 
 
@@ -583,7 +553,27 @@ def get_dependency_graph_legacy(job_id: int):
 
 
 @app.post("/webhook")
-def github_webhook(payload: dict):
+async def github_webhook(request: Request):
+    body = await request.body()
+    secret = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
+    if secret:
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        if not signature.startswith("sha256="):
+            raise HTTPException(status_code=401, detail="Missing or invalid X-Hub-Signature-256")
+        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature[7:], expected):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    elif config.is_production():
+        raise HTTPException(
+            status_code=503,
+            detail="GITHUB_WEBHOOK_SECRET must be set before exposing /webhook in production",
+        )
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+
     repo_info = payload.get("repository", {})
     clone_url = repo_info.get("clone_url")
     if not clone_url:
@@ -606,206 +596,4 @@ def github_webhook(payload: dict):
 @app.get("/repos")
 def get_repositories():
     return database.get_repo_urls_list()
-
-
-@app.get("/repos/compare")
-def compare_repositories(repo_a: str, repo_b: str):
-    repo_a = repo_a.strip()
-    repo_b = repo_b.strip()
-
-    if not repo_a or not repo_b:
-        raise HTTPException(status_code=400, detail="Repository URLs cannot be empty")
-
-    job_a = database.get_last_completed_job_for_repo(repo_a)
-    job_b = database.get_last_completed_job_for_repo(repo_b)
-
-    # Check for active pending or running jobs
-    active_a = database.get_active_job_for_repo(repo_a)
-    active_b = database.get_active_job_for_repo(repo_b)
-
-    needs_trigger_a = not job_a and not active_a
-    needs_trigger_b = not job_b and not active_b
-
-    if needs_trigger_a:
-        job_id_a = database.create_job(repo_a)
-        analyze_repo_task.delay(job_id_a, repo_a)
-        active_a = {
-            "id": job_id_a,
-            "status": "pending",
-            "progress_pct": 0,
-            "progress_message": "Queued comparison scan",
-        }
-
-    if needs_trigger_b:
-        job_id_b = database.create_job(repo_b)
-        analyze_repo_task.delay(job_id_b, repo_b)
-        active_b = {
-            "id": job_id_b,
-            "status": "pending",
-            "progress_pct": 0,
-            "progress_message": "Queued comparison scan",
-        }
-
-    if not job_a or not job_b:
-        status_a = "complete" if job_a else (active_a["status"] if active_a else "pending")
-        progress_a = 100 if job_a else (active_a["progress_pct"] if active_a else 0)
-        message_a = "Completed" if job_a else (active_a["progress_message"] if active_a else "Pending scan")
-
-        status_b = "complete" if job_b else (active_b["status"] if active_b else "pending")
-        progress_b = 100 if job_b else (active_b["progress_pct"] if active_b else 0)
-        message_b = "Completed" if job_b else (active_b["progress_message"] if active_b else "Pending scan")
-
-        return {
-            "status": "scanning",
-            "repo_a": {
-                "url": repo_a,
-                "status": status_a,
-                "progress_pct": progress_a,
-                "progress_message": message_a
-            },
-            "repo_b": {
-                "url": repo_b,
-                "status": status_b,
-                "progress_pct": progress_b,
-                "progress_message": message_b
-            }
-        }
-
-    modules_a = database.get_job_modules(job_a["id"])
-    modules_b = database.get_job_modules(job_b["id"])
-
-    def calc_summary(modules):
-        total_loc = sum(m.get("lines_of_code") or 0 for m in modules)
-        high_risk = sum(1 for m in modules if m.get("risk_level") == "high")
-        avg_debt = sum(m.get("debt_score") or 0 for m in modules) / len(modules) if modules else 0.0
-        avg_coverage = sum(m.get("test_coverage_ratio") or 0.0 for m in modules) / len(modules) if modules else 0.0
-        return {
-            "total_loc": total_loc,
-            "high_risk_count": high_risk,
-            "avg_debt_score": round(avg_debt, 2),
-            "avg_test_coverage": round(avg_coverage, 4),
-            "file_count": len(modules)
-        }
-
-    summary_a = calc_summary(modules_a)
-    summary_b = calc_summary(modules_b)
-
-    return {
-        "status": "complete",
-        "repo_a": {
-            "url": repo_a,
-            "job_id": job_a["id"],
-            "created_at": job_a["created_at"].isoformat() if job_a["created_at"] else None,
-            "metrics": summary_a
-        },
-        "repo_b": {
-            "url": repo_b,
-            "job_id": job_b["id"],
-            "created_at": job_b["created_at"].isoformat() if job_b["created_at"] else None,
-            "metrics": summary_b
-        }
-    }
-
-
-@app.get("/jobs/{job_id}/privacy-comparison")
-def get_privacy_comparison(job_id: int):
-    job = database.get_job(job_id)
-    if not job or not job.get("privacy_mode"):
-        return {"comparisons": []}
-        
-    repo_url = job["repo_url"]
-    import redis_cache
-    cached = redis_cache.get_cached_analysis(repo_url)
-    if not cached:
-        return {"comparisons": []}
-        
-    raw_modules = cached.get("modules", [])
-    if not raw_modules:
-        return {"comparisons": []}
-        
-    perturbed_modules = database.get_job_modules(job_id)
-    if not perturbed_modules:
-        return {"comparisons": []}
-        
-    # Find a module that has meaningful differences or just take the first
-    p_mod = perturbed_modules[0]
-    file_path = p_mod["file_path"]
-    
-    r_mod = next((m for m in raw_modules if m.get("file_path") == file_path), None)
-    if not r_mod:
-        return {"comparisons": []}
-        
-    comparisons = [
-        {
-            "metric": "Cyclomatic Complexity",
-            "real": round(r_mod.get("cyclomatic_complexity", 0), 2),
-            "transmitted": round(p_mod.get("cyclomatic_complexity", 0), 2)
-        },
-        {
-            "metric": "Lines of Code",
-            "real": r_mod.get("lines_of_code"),
-            "transmitted": p_mod.get("lines_of_code")
-        },
-        {
-            "metric": "Days Since Last Commit",
-            "real": round(r_mod.get("days_since_last_commit", 0), 2),
-            "transmitted": round(p_mod.get("days_since_last_commit", 0), 2)
-        }
-    ]
-    return {"comparisons": comparisons}
-
-
-@app.get("/jobs/{job_id}/synthetic-compliance")
-def get_synthetic_compliance(job_id: int):
-    job = database.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-        
-    if job["status"] != "complete":
-        raise HTTPException(status_code=400, detail="Job must be completed to run synthetic compliance checks")
-        
-    # 1. Fetch real modules
-    real_modules = database.get_job_modules(job_id)
-    if not real_modules:
-        return {
-            "status": "empty",
-            "message": "No modules found to generate synthetic compliance."
-        }
-        
-    from privacy.synthesis_engine import (
-        DEFAULT_TABULAR_COLUMNS,
-        TabularGMMSynthesizer,
-        TimeSeriesLSTMSynthesizer,
-        validate_fidelity,
-    )
-
-    tabular = TabularGMMSynthesizer(
-        n_components=3,
-        numeric_columns=DEFAULT_TABULAR_COLUMNS,
-        row_id_column="file_path",
-    )
-    tabular.fit(real_modules)
-    synthetic_tabular = tabular.sample(len(real_modules))
-
-    history = database.get_repo_jobs_history(job["repo_url"])
-    sequence = TimeSeriesLSTMSynthesizer(epochs=100)
-    sequence.fit(history)
-    synthetic_time_series = sequence.sample(len(history))
-
-    validation_report = validate_fidelity(
-        real_data=real_modules,
-        synthetic_data=synthetic_tabular,
-        metrics=DEFAULT_TABULAR_COLUMNS,
-    )
-
-    return {
-        "job_id": job_id,
-        "repo_url": job["repo_url"],
-        "privacy_mode": job.get("privacy_mode", False),
-        "synthesis_methods": validation_report.get("methods"),
-        "validation_report": validation_report,
-        "real_history": history,
-        "synthetic_history": synthetic_time_series,
-        "metrics_sampled": len(synthetic_tabular),
-    }
 

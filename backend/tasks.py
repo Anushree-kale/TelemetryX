@@ -13,7 +13,6 @@ import database
 import explain
 import post_analysis
 import redis_cache
-from privacy import dp_engine
 
 from celery_app import celery_app
 from debt_model import get_scorer
@@ -37,7 +36,7 @@ def _ensure_backend_on_path() -> None:
 
 
 @celery_app.task(bind=True, name="tasks.analyze_repo_task")
-def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = False) -> dict[str, Any]:
+def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
     _ensure_backend_on_path()
     try:
         database.update_job_status(job_id, "running")
@@ -48,10 +47,7 @@ def analyze_repo_task(self, job_id: int, repo_url: str, privacy_mode: bool = Fal
             database.update_job_progress(job_id, 40, "Using cached analysis (recent)")
             modules = cached.get("modules", cached) if isinstance(cached, dict) else cached
             co_pairs = cached.get("co_change_pairs", []) if isinstance(cached, dict) else []
-            
-            if privacy_mode:
-                modules = dp_engine.perturb_metrics(modules)
-                
+
             enriched = _enrich_metrics(modules)
             database.update_job_progress(job_id, 85, "Saving results…")
             _persist_results(job_id, enriched, co_pairs)
