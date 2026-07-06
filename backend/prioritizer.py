@@ -60,10 +60,15 @@ def compute_priorities(
 
         impact_norm = (downstream_count / max(max_downstream, 1)) * 100
         effort_inv = max(0, 100 - ((roi_days / 30) * 100))
+        descendants = list(nx.descendants(G, fp)) if fp in G else []
+        cascade_benefit = sum(debt_by_path.get(d, 0) for d in descendants)
+        fix_hours = roi_days * 8
+        bug_fix_ratio = float(m.get("bug_fix_ratio") or 0)
 
+       
         priority_score = (
             debt_score * 0.40
-            + debt_score * 0.30
+            + (bug_fix_ratio * 100) * 0.30
             + impact_norm * 0.20
             + effort_inv * 0.10
         )
@@ -75,11 +80,6 @@ def compute_priorities(
         days_since = int(m.get("days_since_last_commit") or 0)
         confidence = max(0, 1 - (days_since / 365))
         confidence_margin = priority_score * (1 - confidence) * 0.2
-
-        descendants = list(nx.descendants(G, fp)) if fp in G else []
-        cascade_benefit = sum(debt_by_path.get(d, 0) for d in descendants)
-        fix_hours = roi_days * 8
-        bug_fix_ratio = float(m.get("bug_fix_ratio") or 0)
 
         enriched.append({
             **m,

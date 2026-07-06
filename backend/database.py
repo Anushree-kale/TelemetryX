@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS module_metrics (
     churn_90d INTEGER DEFAULT 0,
     test_coverage_ratio FLOAT DEFAULT 0,
     max_fn_complexity INTEGER DEFAULT 0,
+    worst_function_name TEXT DEFAULT '',
+    worst_function_start INTEGER DEFAULT 0,
+    worst_function_end INTEGER DEFAULT 0,
     fan_out INTEGER DEFAULT 0,
     debt_score FLOAT,
     roi_days FLOAT,
@@ -141,6 +144,9 @@ ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS progress_message TEXT DEFAULT
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS churn_90d INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS test_coverage_ratio FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS max_fn_complexity INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS worst_function_name TEXT DEFAULT '';
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS worst_function_start INTEGER DEFAULT 0;
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS worst_function_end INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS fan_out INTEGER DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS debt_score FLOAT;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS roi_days FLOAT;
@@ -304,13 +310,15 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                  INSERT INTO module_metrics (
                     job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
                     lines_of_code, function_count, churn_90d, test_coverage_ratio,
-                    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
+                    max_fn_complexity, worst_function_name, worst_function_start,
+                    worst_function_end, fan_out, debt_score, roi_days, risk_level, imports,
                     commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct,
                     bug_fix_ratio, days_since_last_commit, co_changes
                 ) VALUES (
                     %(job_id)s, %(file_path)s, %(language)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
                     %(churn_90d)s, %(test_coverage_ratio)s, %(max_fn_complexity)s,
+                    %(worst_function_name)s, %(worst_function_start)s, %(worst_function_end)s,
                     %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s,
                     %(commit_timestamps)s, %(unique_author_count)s, %(unique_authors_30d)s, %(top_author_pct)s,
                     %(bug_fix_ratio)s, %(days_since_last_commit)s, %(co_changes)s
@@ -321,6 +329,9 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                     "job_id": job_id,
                     "language": m.get("language", "unknown"),
                     "imports": m.get("imports", ""),
+                    "worst_function_name": m.get("worst_function_name", ""),
+                    "worst_function_start": int(m.get("worst_function_start", 0) or 0),
+                    "worst_function_end": int(m.get("worst_function_end", 0) or 0),
                     "commit_timestamps": json.dumps(m.get("commit_timestamps", [])),
                     "unique_author_count": int(m.get("unique_author_count", 0)),
                     "unique_authors_30d": int(m.get("unique_authors_30d", 0)),
@@ -407,12 +418,18 @@ def _attach_reasons(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for m in modules:
         reasons_list = by_module.get(m.get("id"), [])[:3]
         m["reasons"] = reasons_list
-        m["summary"] = " ".join(reasons_to_text(reasons_list))
+        m["summary"] = " ".join(reasons_to_text(reasons_list, m))
     return modules
 
 
-def _module_shap_summaries(module_ids: list[int]) -> dict[int, str]:
-    """Plain-language SHAP narrative per module (top 3 contributors)."""
+def _module_shap_summaries(modules: list[dict[str, Any]]) -> dict[int, str]:
+    """Plain-language, code-grounded narrative per module (top 3 contributors).
+
+    `modules` must contain dicts with a `module_id` key plus the worst-function
+    fields (worst_function_name/start/end) so the summary can point at real
+    code instead of a bare feature name.
+    """
+    module_ids = [m["module_id"] for m in modules if m.get("module_id")]
     if not module_ids:
         return {}
     from explain import reasons_to_text
@@ -444,13 +461,18 @@ def _module_shap_summaries(module_ids: list[int]) -> dict[int, str]:
             }
         )
 
-    return {mid: " ".join(reasons_to_text(lst)) for mid, lst in by_module.items()}
+    module_by_id = {m["module_id"]: m for m in modules}
+    return {
+        mid: " ".join(reasons_to_text(lst, module_by_id.get(mid, {})))
+        for mid, lst in by_module.items()
+    }
 
 
 _MODULE_COLUMNS = """
     id, job_id, file_path, language, cyclomatic_complexity, cognitive_complexity,
     lines_of_code, function_count, churn_90d, test_coverage_ratio,
-    max_fn_complexity, fan_out, debt_score, roi_days, risk_level, imports,
+    max_fn_complexity, worst_function_name, worst_function_start, worst_function_end,
+    fan_out, debt_score, roi_days, risk_level, imports,
     commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct, bug_fix_ratio,
     days_since_last_commit, co_changes, in_degree, out_degree, betweenness,
     cluster_id, downstream_count, is_critical, priority_score
@@ -663,7 +685,8 @@ def get_roadmap_items(job_id: int) -> list[dict[str, Any]]:
                    r.downstream_files, r.fix_hours, r.reason,
                    m.id AS module_id, m.file_path, m.debt_score, m.downstream_count,
                    m.is_critical, m.roi_days, m.bug_fix_ratio, m.cluster_id,
-                   m.in_degree, m.out_degree, m.priority_score
+                   m.in_degree, m.out_degree, m.priority_score,
+                   m.worst_function_name, m.worst_function_start, m.worst_function_end
             FROM roadmap_items r
             JOIN module_metrics m ON m.id = r.module_id
             WHERE r.job_id = %s
@@ -674,7 +697,7 @@ def get_roadmap_items(job_id: int) -> list[dict[str, Any]]:
         items = [dict(row) for row in cur.fetchall()]
     if not items:
         return items
-    summaries = _module_shap_summaries([i["module_id"] for i in items])
+    summaries = _module_shap_summaries(items)
     for item in items:
         item["summary"] = summaries.get(item["module_id"], "")
     return items

@@ -41,7 +41,7 @@ def _cyclomatic_from_lizard(analysis) -> float:
     return sum(f.cyclomatic_complexity for f in functions) / len(functions)
 
 
-def _metrics_from_lizard(file_path: str) -> dict[str, float | int]:
+def _metrics_from_lizard(file_path: str) -> dict[str, float | int | str]:
     analysis = lizard.analyze_file(file_path)
     functions = analysis.function_list
 
@@ -50,17 +50,30 @@ def _metrics_from_lizard(file_path: str) -> dict[str, float | int]:
             getattr(f, "cognitive_complexity", f.cyclomatic_complexity) for f in functions
         ) / len(functions)
         function_count = len(functions)
-        max_fn_complexity = max(f.cyclomatic_complexity for f in functions)
+        # Keep the whole record for the worst function, not just its score,
+        # so downstream explanations can point at real code (name + lines)
+        # instead of a bare number.
+        worst_fn = max(functions, key=lambda f: f.cyclomatic_complexity)
+        max_fn_complexity = worst_fn.cyclomatic_complexity
+        worst_fn_name = worst_fn.name
+        worst_fn_start = getattr(worst_fn, "start_line", 0)
+        worst_fn_end = getattr(worst_fn, "end_line", 0)
     else:
         cognitive = 0.0
         function_count = 0
         max_fn_complexity = 0
+        worst_fn_name = ""
+        worst_fn_start = 0
+        worst_fn_end = 0
 
     return {
         "cognitive_complexity": round(cognitive, 2),
         "lines_of_code": analysis.nloc,
         "function_count": function_count,
         "max_fn_complexity": int(max_fn_complexity),
+        "worst_function_name": worst_fn_name,
+        "worst_function_start": int(worst_fn_start),
+        "worst_function_end": int(worst_fn_end),
     }
 
 
@@ -531,6 +544,9 @@ def analyze_source_files(
                     "lines_of_code": len([line for line in source.splitlines() if line.strip()]),
                     "function_count": 0,
                     "max_fn_complexity": 0,
+                    "worst_function_name": "",
+                    "worst_function_start": 0,
+                    "worst_function_end": 0,
                 }
         elif ext in LIZARD_NATIVE_EXTENSIONS:
             try:
@@ -544,6 +560,9 @@ def analyze_source_files(
                     "lines_of_code": len([line for line in source.splitlines() if line.strip()]),
                     "function_count": 0,
                     "max_fn_complexity": 0,
+                    "worst_function_name": "",
+                    "worst_function_start": 0,
+                    "worst_function_end": 0,
                 }
         else:
             # Safe Fallback for non-AST languages (like SQL, HTML, CSS, JSON, YAML)
@@ -554,6 +573,9 @@ def analyze_source_files(
                 "lines_of_code": max(1, nloc),
                 "function_count": 0,
                 "max_fn_complexity": 0,
+                "worst_function_name": "",
+                "worst_function_start": 0,
+                "worst_function_end": 0,
             }
 
         source_loc = max(1, int(lizard_metrics["lines_of_code"]))
@@ -583,6 +605,9 @@ def analyze_source_files(
                 "lines_of_code": lizard_metrics["lines_of_code"],
                 "function_count": lizard_metrics["function_count"],
                 "max_fn_complexity": lizard_metrics["max_fn_complexity"],
+                "worst_function_name": lizard_metrics.get("worst_function_name", ""),
+                "worst_function_start": lizard_metrics.get("worst_function_start", 0),
+                "worst_function_end": lizard_metrics.get("worst_function_end", 0),
                 "fan_out": len(imports_list),
                 "imports": ",".join(imports_list),
                 "churn_90d": churn,
