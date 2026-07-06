@@ -158,7 +158,8 @@ export default function DeveloperTools({ apiBase }) {
                 <strong>Add it as a webhook in GitHub</strong>
                 <p className="devtools-step-hint">
                   Go to your repo → <em>Settings → Webhooks → Add webhook</em>. Paste the URL above,
-                  set content type to <code>application/json</code>, and choose the <em>Push</em> event.
+                  set content type to <code>application/json</code>, choose the <em>Push</em> event,
+                  and set the webhook secret to match <code>GITHUB_WEBHOOK_SECRET</code> on the API.
                 </p>
               </div>
             </div>

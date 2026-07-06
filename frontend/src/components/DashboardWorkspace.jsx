@@ -9,10 +9,8 @@ import CoChangeTab from "./CoChangeTab";
 import HistoryTrends from "./HistoryTrends";
 import LanguageBreakdown from "./LanguageBreakdown";
 import ShapJobSummary from "./ShapJobSummary";
-import PrivacyTab from "./PrivacyTab";
-import { SectionHint } from "./appPrimitives";
 import RecentProfilesPicker from "./RecentProfilesPicker";
-import FailureRiskTab from "./FailureRiskTab";
+import { SectionHint } from "./appPrimitives";
 import WorkspaceTopbar from "./WorkspaceTopbar";
 import ScanView from "./ScanView";
 import WorkspaceOverview from "./WorkspaceOverview";
@@ -26,7 +24,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
   const [repoUrl, setRepoUrl] = useState(null);
   const [currentJobId, setCurrentJobId] = useState(null);
   const [modulesLoading, setModulesLoading] = useState(true);
-  const [privacyMode, setPrivacyMode] = useState(false);
   const [uiPhase, setUiPhase] = useState("idle");
   const [showProfiles, setShowProfiles] = useState(false);
   const [scanProgress, setScanProgress] = useState({ pct: 0, message: "" });
@@ -44,7 +41,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
       const list = data.modules || [];
       setModules(list);
       setRepoUrl(data.repo_url ?? null);
-      setPrivacyMode(!!data.privacy_mode);
       setStatus(data.status ?? null);
       if (list.length > 0) {
         setUiPhase("results");
@@ -79,7 +75,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
     setStatus(result.status);
     setRepoUrl(result.repo_url);
     setCurrentJobId(result.job_id ?? null);
-    setPrivacyMode(!!result.privacy_mode);
     onReposChanged?.();
     setActivePanel("overview");
     setUiPhase("results");
@@ -87,9 +82,8 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
     setScanProgress({ pct: 100, message: "" });
   };
 
-  const handleAnalyzeStart = (enabledPrivacy = false) => {
+  const handleAnalyzeStart = () => {
     setUiPhase("scanning");
-    setPrivacyMode(!!enabledPrivacy);
     setScanProgress({ pct: 0, message: "Submitting analysis…" });
   };
 
@@ -131,7 +125,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
             <p className="tx-eyebrow">// REPOSITORY DIAGNOSTICS</p>
             <h1 className="tx-hero-title">POINT THIS AT ANY PUBLIC REPO</h1>
             <p className="tx-hero-sub">
-              Static analysis, causal commit history, and failure-risk scoring — surfaced the
+              Static analysis, causal commit history, and debt scoring — surfaced the
               moment the scan finishes, not scrolled to.
             </p>
 
@@ -197,7 +191,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
             apiBase={apiBase}
             onNavigate={setActivePanel}
             onNewScan={handleNewScan}
-            privacyMode={privacyMode}
           />
         )}
 
@@ -236,7 +229,7 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
                 <>
                   <HistoryTrends repoUrl={activeRepoUrl} apiBase={apiBase} />
                   <LanguageBreakdown modules={modules} />
-                  {jobId && <ShapJobSummary jobId={jobId} apiBase={apiBase} />}
+                  {jobId && <ShapJobSummary modules={modules} />}
                   <div className="card">
                     <div className="card-heading-row">
                       <h2>Highest cyclomatic complexity</h2>
@@ -250,36 +243,6 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
                     <MetricsChart modules={modules} />
                   </div>
                 </>
-              )}
-
-              {activePanel === "failure" && jobId && (
-                <div className="card">
-                  <div className="card-heading-row">
-                    <h2>Failure risk prediction</h2>
-                    <SectionHint label="Failure risk">
-                      <p>
-                        LSTM risk scores. Predicts likelihood of future bugs and failures based on
-                        churn, complexity, and commit cadence.
-                      </p>
-                    </SectionHint>
-                  </div>
-                  <FailureRiskTab jobId={jobId} apiBase={apiBase} modules={modules} />
-                </div>
-              )}
-
-              {activePanel === "privacy" && jobId && (
-                <div className="card">
-                  <div className="card-heading-row">
-                    <h2>Privacy &amp; Synthesis Compliance</h2>
-                    <SectionHint label="Privacy &amp; Synthesis">
-                      <p>
-                        Calibrated differential privacy metrics, contributor PII stripping, and
-                        tabular GMM / time-series LSTM synthesis validation.
-                      </p>
-                    </SectionHint>
-                  </div>
-                  <PrivacyTab jobId={jobId} apiBase={apiBase} />
-                </div>
               )}
 
               {activePanel === "files" && (

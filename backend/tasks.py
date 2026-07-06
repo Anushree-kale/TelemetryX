@@ -73,9 +73,6 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             )
 
             database.update_job_progress(job_id, 75, "Running models…")
-            if privacy_mode:
-                raw_metrics = dp_engine.perturb_metrics(raw_metrics)
-                
             enriched = _enrich_metrics(raw_metrics)
 
             database.update_job_progress(job_id, 90, "Saving results…")
@@ -120,6 +117,7 @@ def _persist_results(
 
 @celery_app.task(name="tasks.predict_failures_task")
 def predict_failures_task(job_id: int) -> None:
+    """Internal-only LSTM failure predictor (not exposed via API)."""
     _ensure_backend_on_path()
 
     import failure_predictor
@@ -127,11 +125,6 @@ def predict_failures_task(job_id: int) -> None:
     try:
         failure_predictor.load_failure_model()
         failure_predictor.predict_failures(job_id)
-        
-        import database
-        import alerts
-        preds = database.get_job_failure_predictions(job_id)
-        alerts.send_failure_alert(job_id, preds)
     except Exception as exc:
         logging.getLogger(__name__).error(
             f"Failed to run failure predictor task for job {job_id}: {exc}",

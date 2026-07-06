@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import CompareWorkspace from "./components/CompareWorkspace";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
 import InterfaceBackground from "./components/InterfaceBackground";
@@ -42,13 +41,6 @@ export default function AppShell() {
             </button>
             <button
               type="button"
-              className={`tab-btn ${activeTab === "compare" ? "active" : ""}`}
-              onClick={() => setActiveTab("compare")}
-            >
-              Compare two
-            </button>
-            <button
-              type="button"
               className={`tab-btn ${activeTab === "tools" ? "active" : ""}`}
               onClick={() => setActiveTab("tools")}
             >
@@ -65,8 +57,6 @@ export default function AppShell() {
               onReposChanged={refreshRepoList}
             />
           )}
-
-          {activeTab === "compare" && <CompareWorkspace repoList={repoList} />}
 
           {activeTab === "tools" && <DeveloperTools apiBase={API_BASE} />}
         </main>

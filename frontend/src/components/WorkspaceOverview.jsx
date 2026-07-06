@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 function shortRepo(url) {
   if (!url) return "";
@@ -23,10 +23,8 @@ export default function WorkspaceOverview({
   apiBase,
   onNavigate,
   onNewScan,
-  privacyMode,
 }) {
   const [history, setHistory] = useState([]);
-  const [failureRisk, setFailureRisk] = useState(null);
 
   useEffect(() => {
     if (!repoUrl) return;
@@ -37,20 +35,6 @@ export default function WorkspaceOverview({
       })
       .catch(() => {});
   }, [repoUrl, apiBase]);
-
-  useEffect(() => {
-    if (!jobId) return;
-    fetch(`${apiBase}/jobs/${jobId}/failure-risk`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data?.predictions?.length) return;
-        const avg =
-          data.predictions.reduce((s, p) => s + (p.risk_score ?? 0), 0) /
-          data.predictions.length;
-        setFailureRisk(avg);
-      })
-      .catch(() => {});
-  }, [jobId, apiBase]);
 
   const withScore = modules.filter((m) => m.debt_score != null);
   const avgDebt =
@@ -81,17 +65,6 @@ export default function WorkspaceOverview({
     (m) => m.risk_level === "high" || (m.priority_score != null && m.priority_score >= 0.7),
   ).length;
 
-  const riskPct = failureRisk != null
-    ? Math.round(failureRisk * 100)
-    : history.length > 0
-      ? Math.round((history[history.length - 1]?.avg_failure_risk ?? 0) * 100)
-      : null;
-
-  const signalHeights = useMemo(
-    () => Array.from({ length: 16 }, () => 20 + Math.random() * 80),
-    [jobId],
-  );
-
   const ranked = topModules(modules);
 
   return (
@@ -100,9 +73,6 @@ export default function WorkspaceOverview({
         <div className="tx-res-repo">
           // SCAN COMPLETE &nbsp;·&nbsp; <b>{shortRepo(repoUrl)}</b> &nbsp;·&nbsp;{" "}
           {modules.length} module{modules.length === 1 ? "" : "s"}
-          {privacyMode && (
-            <span className="tx-privacy-tag"> · DP on</span>
-          )}
         </div>
         <button type="button" className="tx-btn-ghost" onClick={onNewScan}>
           NEW SCAN
@@ -121,7 +91,7 @@ export default function WorkspaceOverview({
           </div>
         </button>
 
-        <button type="button" className="tx-kpi" onClick={() => onNavigate?.("failure")}>
+        <button type="button" className="tx-kpi" onClick={() => onNavigate?.("files")}>
           <div className="tx-kpi-label">High-risk modules</div>
           <div className="tx-kpi-bar">
             <i style={{ width: `${Math.min(100, highRiskCount * 8)}%` }} />
@@ -158,7 +128,7 @@ export default function WorkspaceOverview({
       <div className="tx-main-grid">
         <div className="tx-panel">
           <h3 className="tx-panel-title">
-            Top risk modules <span>ranked by XGBoost debt score</span>
+            Top risk modules <span>ranked by debt score</span>
           </h3>
           <div className="tx-mod-list">
             {ranked.length === 0 ? (
@@ -183,21 +153,16 @@ export default function WorkspaceOverview({
         <button
           type="button"
           className="tx-panel tx-panel--clickable"
-          onClick={() => onNavigate?.("failure")}
+          onClick={() => onNavigate?.("charts")}
         >
           <h3 className="tx-panel-title">
-            Failure risk <span>LSTM</span>
+            Scan trends <span>vs previous run</span>
           </h3>
           <div className="tx-gauge-wrap">
             <div className="tx-gauge-num">
-              {riskPct != null ? `${riskPct}%` : "—"}
+              {debtDelta != null ? `${debtDelta > 0 ? "+" : ""}${debtDelta}` : "—"}
             </div>
-            <div className="tx-gauge-cap">30-day regression likelihood</div>
-            <div className="tx-signal-strip" aria-hidden>
-              {signalHeights.map((h, i) => (
-                <i key={i} style={{ height: `${h}%` }} />
-              ))}
-            </div>
+            <div className="tx-gauge-cap">debt score change since last scan</div>
           </div>
         </button>
       </div>

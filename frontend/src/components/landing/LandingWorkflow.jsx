@@ -12,7 +12,7 @@ const STEPS = [
     num: "02",
     label: "Analyze",
     title: ["ML ", "SCAN"],
-    desc: "Models evaluate debt scores, failure risk, churn, coupling, and contributor concentration in minutes.",
+    desc: "Models evaluate debt scores, churn, coupling, and contributor concentration in minutes.",
     align: "right",
   },
   {
@@ -26,7 +26,7 @@ const STEPS = [
     num: "04",
     label: "Act",
     title: ["EXPORT & ", "TRACK"],
-    desc: "Push Jira-ready tickets, compare repos side-by-side, and monitor trends over scan history.",
+    desc: "Push Jira-ready tickets and monitor trends over scan history for the same repo.",
     align: "right",
   },
 ];

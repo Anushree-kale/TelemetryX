@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -13,67 +13,47 @@ import { SHAP_PLAIN } from "../labels";
 
 const FEATURE_PLAIN = SHAP_PLAIN;
 
+function aggregateDrivers(modules) {
+  const byFeature = new Map();
+  for (const mod of modules) {
+    for (const r of mod.reasons || []) {
+      const name = r.feature;
+      const existing = byFeature.get(name) || {
+        name,
+        total: 0,
+        modules: 0,
+        pctSum: 0,
+      };
+      existing.total += Math.abs(Number(r.shap_value ?? 0));
+      existing.pctSum += Number(r.contribution_pct ?? 0);
+      existing.modules += 1;
+      byFeature.set(name, existing);
+    }
+  }
+  return [...byFeature.values()]
+    .map((f) => ({
+      name: f.name,
+      total: f.total,
+      modules: f.modules,
+      avgPct: f.modules ? f.pctSum / f.modules : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
 function formatShapTooltip(payload) {
   const p = payload;
   const plain = FEATURE_PLAIN[p.name] || "a signal the debt model leans on";
   const topShare = p.avgPct?.toFixed(1) ?? "0";
   return [
-    `${p.name} (${plain}) is the strongest contributor in roughly ${topShare}% of the typical file’s top-3 explanation (across ${p.modules} files in this scan). Total influence magnitude: ${p.total.toFixed(3)} (model-internal units).`,
+    `${p.name} (${plain}) is the strongest contributor in roughly ${topShare}% of the typical file's top-3 explanation (across ${p.modules} files in this scan). Total influence magnitude: ${p.total.toFixed(3)} (model-internal units).`,
     "Model drivers",
   ];
 }
 
-export default function ShapJobSummary({ jobId, apiBase }) {
-  const [features, setFeatures] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export default function ShapJobSummary({ modules = [] }) {
+  const features = useMemo(() => aggregateDrivers(modules), [modules]);
 
-  const load = useCallback(async () => {
-    if (!jobId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${apiBase}/jobs/${jobId}/shap-summary`);
-      if (!res.ok) throw new Error("Could not load driver summary");
-      const data = await res.json();
-      const list = (data.features || []).map((f) => ({
-        name: f.feature,
-        total: Number(f.total_abs_shap ?? 0),
-        modules: f.module_count,
-        avgPct: Number(f.avg_contribution_pct ?? 0),
-      }));
-      setFeatures(list);
-    } catch (e) {
-      setError(e.message);
-      setFeatures([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [jobId, apiBase]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (!jobId) return null;
-
-  if (loading) {
-    return (
-      <div className="card">
-        <h2>What makes files messy here?</h2>
-        <p className="card-hint">Loading aggregated explanations…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="card">
-        <h2>What makes files messy here?</h2>
-        <p className="status error">⚠️ {error}</p>
-      </div>
-    );
-  }
+  if (!modules.length) return null;
 
   if (features.length === 0) {
     return (

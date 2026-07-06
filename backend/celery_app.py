@@ -30,4 +30,9 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     broker_connection_retry_on_startup=True,
+    broker_transport_options={
+        # Must exceed longest analyze task; prevents Redis from re-delivering
+        # a still-running task after the default 1h visibility window.
+        "visibility_timeout": int(os.getenv("CELERY_VISIBILITY_TIMEOUT", "14400")),
+    },
 )

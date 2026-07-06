@@ -8,9 +8,9 @@ const FEATURES = [
     desc: "0–100 model scores rank rework risk, complexity, and change difficulty across every module.",
   },
   {
-    tag: "ML",
-    title: "Failure Risk",
-    desc: "LSTM-based predictions surface modules most likely to break under the next wave of changes.",
+    tag: "Explain",
+    title: "Risk Drivers",
+    desc: "Code-grounded SHAP explanations show why each file scored high — pointing at real functions and metrics.",
   },
   {
     tag: "Output",
@@ -18,9 +18,9 @@ const FEATURES = [
     desc: "Jira-ready work items with priority scores, effort estimates, and plain-English rationale.",
   },
   {
-    tag: "Compliance",
-    title: "Privacy & Synthesis",
-    desc: "Differential privacy checks and GAN-based synthetic data for safe sharing of insights.",
+    tag: "Trends",
+    title: "Scan History",
+    desc: "Track debt score and high-risk module counts across repeated scans of the same repository.",
   },
   {
     tag: "Graph",

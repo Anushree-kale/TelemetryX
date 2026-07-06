@@ -10,12 +10,10 @@ export default function AnalyzeForm({
   onComplete,
   onStatusChange,
   onAnalyzeStart,
-  onPrivacyModeChange,
   onProgressChange,
   variant = "default",
 }) {
   const [repoUrl, setRepoUrl] = useState("");
-  const [privacyMode, setPrivacyMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState({ pct: 0, message: "" });
@@ -82,14 +80,13 @@ export default function AnalyzeForm({
     setProgress(initial);
     onProgressChange?.(initial);
     onStatusChange?.("pending");
-    onAnalyzeStart?.(privacyMode);
-    onPrivacyModeChange?.(privacyMode);
+    onAnalyzeStart?.();
 
     try {
       const res = await apiFetch(apiBase, "/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo_url: url, privacy_mode: privacyMode }),
+        body: JSON.stringify({ repo_url: url }),
       });
 
       if (!res.ok) {
@@ -101,10 +98,7 @@ export default function AnalyzeForm({
         throw new Error(message);
       }
 
-      const { job_id: jobId, status, privacy_mode: privacyFromJob } = await res.json();
-      if (typeof privacyFromJob === "boolean") {
-        onPrivacyModeChange?.(privacyFromJob);
-      }
+      const { job_id: jobId, status } = await res.json();
       onStatusChange?.(status);
 
       if (status === "complete") {
@@ -165,17 +159,6 @@ export default function AnalyzeForm({
         <button type="submit" disabled={loading} className="btn-primary btn-analyze">
           {loading ? "Analysing…" : isV2 ? "ANALYZE" : "Analyze"}
         </button>
-      </div>
-
-      <div className="privacy-toggle-row">
-        <input
-          type="checkbox"
-          id="privacyMode"
-          checked={privacyMode}
-          onChange={(e) => setPrivacyMode(e.target.checked)}
-          disabled={loading}
-        />
-        <label htmlFor="privacyMode">Enable Synthetic Privacy (DP Engine)</label>
       </div>
 
       {recentRepos.length > 0 && (

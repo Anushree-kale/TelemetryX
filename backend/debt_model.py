@@ -31,6 +31,11 @@ FEATURE_LABELS = {
 
 
 def synthetic_label(row: dict[str, Any]) -> int:
+    """Heuristic training label — not real incident/bug data.
+
+    XGBoost currently re-learns this rule; replace with labeled outcomes
+    before presenting the debt score as ML-driven.
+    """
     if (
         float(row.get("cyclomatic_complexity", 0)) > 15
         and int(row.get("churn_90d", 0)) > 10

@@ -143,14 +143,14 @@ export default function ModuleDetailDrawer({ module, onClose }) {
 
         {module.summary && (
           <section className="drawer-section">
-            <h4>Plain-language story</h4>
+            <h4>Why is this risky?</h4>
             <p className="drawer-summary-text">{module.summary}</p>
           </section>
         )}
 
         {reasons.length > 0 && (
           <section className="drawer-section">
-            <h4>Top model drivers (SHAP)</h4>
+            <h4>Top model drivers</h4>
             <ResponsiveContainer width="100%" height={reasons.length * 44 + 16}>
               <BarChart
                 data={reasons}

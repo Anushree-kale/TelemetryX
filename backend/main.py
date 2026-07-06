@@ -361,7 +361,6 @@ def get_module_risk_explanation(job_id: int, module_id: int):
         "risk_level": module.get("risk_level"),
         "drivers": drivers,
         "explanation": reasons_to_text(drivers, module),
-        "job_drivers": database.get_job_shap_aggregate(job_id),
     }
 
 
