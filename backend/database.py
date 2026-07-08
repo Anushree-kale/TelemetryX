@@ -102,28 +102,6 @@ CREATE TABLE IF NOT EXISTS shap_explanations (
     display_value TEXT
 );
 
-CREATE TABLE IF NOT EXISTS failure_predictions (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
-    module_id INTEGER REFERENCES module_metrics(id) ON DELETE CASCADE,
-    file_path TEXT NOT NULL,
-    risk_score FLOAT NOT NULL,
-    risk_level TEXT NOT NULL,
-    failure_explanation JSONB,
-    predicted_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS api_keys (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    team TEXT NOT NULL DEFAULT 'default',
-    key_hash TEXT NOT NULL UNIQUE,
-    key_prefix TEXT NOT NULL,
-    rate_limit_per_hour INTEGER DEFAULT 100,
-    created_at TIMESTAMP DEFAULT NOW(),
-    revoked_at TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     github_id TEXT UNIQUE NOT NULL,
@@ -168,29 +146,13 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT 
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'unknown';
 ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS privacy_mode BOOLEAN DEFAULT FALSE;
-ALTER TABLE failure_predictions ADD COLUMN IF NOT EXISTS failure_explanation JSONB;
 
-CREATE TABLE IF NOT EXISTS failure_predictions (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
-    module_id INTEGER REFERENCES module_metrics(id) ON DELETE CASCADE,
-    file_path TEXT NOT NULL,
-    risk_score FLOAT NOT NULL,
-    risk_level TEXT NOT NULL,
-    failure_explanation JSONB,
-    predicted_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS api_keys (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    team TEXT NOT NULL DEFAULT 'default',
-    key_hash TEXT NOT NULL UNIQUE,
-    key_prefix TEXT NOT NULL,
-    rate_limit_per_hour INTEGER DEFAULT 100,
-    created_at TIMESTAMP DEFAULT NOW(),
-    revoked_at TIMESTAMP
-);
+-- The LSTM failure predictor and the standalone API-key auth layer were
+-- both removed (unused in practice — scans are triggered by URL, and the
+-- api_keys table never had real rows). Drop them from existing databases
+-- rather than just no longer creating them.
+DROP TABLE IF EXISTS failure_predictions CASCADE;
+DROP TABLE IF EXISTS api_keys CASCADE;
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -769,7 +731,6 @@ def get_repo_jobs_history(repo_url: str) -> list[dict[str, Any]]:
                    COALESCE(SUM(CASE WHEN m.risk_level = 'high' THEN 1 ELSE 0 END), 0) AS high_risk_count,
                    COALESCE(AVG(m.test_coverage_ratio), 0) AS avg_test_coverage,
                    COUNT(m.id) AS file_count,
-                   COALESCE((SELECT AVG(risk_score) FROM failure_predictions WHERE job_id = j.id), 0) AS avg_failure_risk,
                    COALESCE(SUM(CASE WHEN m.risk_level = 'high' THEN m.roi_days ELSE 0 END), 0) AS high_risk_roi
             FROM analysis_jobs j
             LEFT JOIN module_metrics m ON m.job_id = j.id
@@ -791,7 +752,6 @@ def get_repo_jobs_history(repo_url: str) -> list[dict[str, Any]]:
         row_dict["high_risk_count"] = int(row_dict["high_risk_count"])
         row_dict["avg_test_coverage"] = float(row_dict["avg_test_coverage"])
         row_dict["file_count"] = int(row_dict["file_count"])
-        row_dict["avg_failure_risk"] = float(row_dict["avg_failure_risk"])
         row_dict["high_risk_roi"] = float(row_dict["high_risk_roi"])
         row_dict["privacy_mode"] = bool(row_dict["privacy_mode"])
         result.append(row_dict)
@@ -856,264 +816,6 @@ def get_active_job_for_repo(repo_url: str) -> dict[str, Any] | None:
         )
         row = cur.fetchone()
         return dict(row) if row else None
-
-
-def insert_failure_predictions(
-    job_id: int,
-    predictions: list[dict[str, Any]],
-) -> None:
-    if not predictions:
-        return
-    with get_cursor() as cur:
-        cur.execute("DELETE FROM failure_predictions WHERE job_id = %s", (job_id,))
-        psycopg2.extras.execute_batch(
-            cur,
-            """
-            INSERT INTO failure_predictions
-                (job_id, module_id, file_path, risk_score, risk_level, failure_explanation)
-            VALUES (%(job_id)s, %(module_id)s, %(file_path)s, %(risk_score)s, %(risk_level)s, %(failure_explanation)s)
-            """,
-            [{
-                **p,
-                "job_id": job_id,
-                "failure_explanation": json.dumps(p.get("failure_explanation", []))
-            } for p in predictions],
-        )
-
-
-def get_job_failure_predictions(job_id: int) -> list[dict[str, Any]]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, job_id, module_id, file_path, risk_score, risk_level, failure_explanation, predicted_at
-            FROM failure_predictions
-            WHERE job_id = %s
-            ORDER BY risk_score DESC
-            """,
-            (job_id,),
-        )
-        predictions = []
-        for row in cur.fetchall():
-            d = dict(row)
-            if d.get("failure_explanation") and isinstance(d["failure_explanation"], str):
-                try:
-                    d["failure_explanation"] = json.loads(d["failure_explanation"])
-                except Exception:
-                    pass
-            predictions.append(d)
-        return predictions
-
-
-def get_failure_prediction_explanation(job_id: int, module_id: int) -> dict[str, Any] | None:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, job_id, module_id, file_path, risk_score, risk_level, failure_explanation, predicted_at
-            FROM failure_predictions
-            WHERE job_id = %s AND module_id = %s
-            """,
-            (job_id, module_id),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        d = dict(row)
-        if d.get("failure_explanation") and isinstance(d["failure_explanation"], str):
-            try:
-                d["failure_explanation"] = json.loads(d["failure_explanation"])
-            except Exception:
-                pass
-        return d
-
-
-def get_file_metric_history(file_path: str, current_job_id: int) -> list[dict[str, Any]]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit
-            FROM module_metrics mm
-            JOIN analysis_jobs aj ON mm.job_id = aj.id
-            WHERE mm.file_path = %s 
-              AND aj.status = 'complete' 
-              AND aj.id <= %s
-            ORDER BY aj.created_at ASC
-            LIMIT 10
-            """,
-            (file_path, current_job_id),
-        )
-        return [dict(row) for row in cur.fetchall()]
-
-
-def get_historical_metric_sequences(min_steps: int = 3) -> dict[str, list[dict[str, Any]]]:
-    """Build per-file metric timelines from all completed jobs (for LSTM training)."""
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit,
-                   mm.test_coverage_ratio, mm.fan_out, mm.function_count, mm.max_fn_complexity, mm.unique_authors_30d,
-                   aj.created_at
-            FROM module_metrics mm
-            JOIN analysis_jobs aj ON mm.job_id = aj.id
-            WHERE aj.status = 'complete'
-            ORDER BY mm.file_path, aj.created_at ASC
-            """
-        )
-        rows = cur.fetchall()
-
-    sequences: dict[str, list[dict[str, Any]]] = {}
-    for row in rows:
-        path = row["file_path"]
-        sequences.setdefault(path, []).append(
-            {
-                "churn_90d": row["churn_90d"],
-                "cyclomatic_complexity": row["cyclomatic_complexity"],
-                "days_since_last_commit": row["days_since_last_commit"],
-                "test_coverage_ratio": row["test_coverage_ratio"],
-                "fan_out": row["fan_out"],
-                "function_count": row["function_count"],
-                "max_fn_complexity": row["max_fn_complexity"],
-                "unique_authors_30d": row["unique_authors_30d"],
-            }
-        )
-
-    return {
-        path: history
-        for path, history in sequences.items()
-        if len(history) >= min_steps
-    }
-
-
-def get_bulk_file_metric_history(file_paths: list[str], current_job_id: int) -> dict[str, list[dict[str, Any]]]:
-    if not file_paths:
-        return {}
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            WITH ranked_history AS (
-                SELECT mm.file_path, mm.churn_90d, mm.cyclomatic_complexity, mm.days_since_last_commit,
-                       mm.test_coverage_ratio, mm.fan_out, mm.function_count, mm.max_fn_complexity, mm.unique_authors_30d,
-                       ROW_NUMBER() OVER (PARTITION BY mm.file_path ORDER BY aj.created_at DESC) as rk
-                FROM module_metrics mm
-                JOIN analysis_jobs aj ON mm.job_id = aj.id
-                WHERE mm.file_path = ANY(%s) 
-                  AND aj.status = 'complete' 
-                  AND aj.id <= %s
-            )
-            SELECT file_path, churn_90d, cyclomatic_complexity, days_since_last_commit,
-                   test_coverage_ratio, fan_out, function_count, max_fn_complexity, unique_authors_30d
-            FROM ranked_history
-            WHERE rk <= 10
-            ORDER BY rk DESC
-            """,
-            (file_paths, current_job_id),
-        )
-        rows = cur.fetchall()
-        
-        # Group by file_path
-        history_by_file = {path: [] for path in file_paths}
-        for row in rows:
-            path = row["file_path"]
-            if path in history_by_file:
-                history_by_file[path].append({
-                    "churn_90d": row["churn_90d"],
-                    "cyclomatic_complexity": row["cyclomatic_complexity"],
-                    "days_since_last_commit": row["days_since_last_commit"],
-                    "test_coverage_ratio": row["test_coverage_ratio"],
-                    "fan_out": row["fan_out"],
-                    "function_count": row["function_count"],
-                    "max_fn_complexity": row["max_fn_complexity"],
-                    "unique_authors_30d": row["unique_authors_30d"],
-                })
-        return history_by_file
-
-
-def get_job_modules_raw(job_id: int) -> list[dict[str, Any]]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, file_path, churn_90d, cyclomatic_complexity, days_since_last_commit,
-                   test_coverage_ratio, fan_out, function_count, max_fn_complexity, unique_authors_30d
-            FROM module_metrics
-            WHERE job_id = %s
-            """,
-            (job_id,),
-        )
-        return [dict(row) for row in cur.fetchall()]
-
-
-def create_api_key_record(
-    *,
-    name: str,
-    team: str,
-    key_hash: str,
-    key_prefix: str,
-    rate_limit_per_hour: int,
-) -> dict[str, Any]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            INSERT INTO api_keys (name, team, key_hash, key_prefix, rate_limit_per_hour)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, name, team, key_prefix, rate_limit_per_hour, created_at
-            """,
-            (name, team, key_hash, key_prefix, rate_limit_per_hour),
-        )
-        row = dict(cur.fetchone())
-        if row["created_at"]:
-            row["created_at"] = row["created_at"].isoformat()
-        return row
-
-
-def list_api_keys() -> list[dict[str, Any]]:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, name, team, key_prefix, rate_limit_per_hour, created_at, revoked_at
-            FROM api_keys
-            ORDER BY created_at DESC
-            """
-        )
-        rows = []
-        for row in cur.fetchall():
-            item = dict(row)
-            if item["created_at"]:
-                item["created_at"] = item["created_at"].isoformat()
-            if item["revoked_at"]:
-                item["revoked_at"] = item["revoked_at"].isoformat()
-            rows.append(item)
-        return rows
-
-
-def get_active_api_key_by_hash(key_hash: str) -> dict[str, Any] | None:
-    with get_cursor(dict_cursor=True) as cur:
-        cur.execute(
-            """
-            SELECT id, name, team, key_hash, key_prefix, rate_limit_per_hour, created_at
-            FROM api_keys
-            WHERE key_hash = %s AND revoked_at IS NULL
-            """,
-            (key_hash,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        item = dict(row)
-        if item["created_at"]:
-            item["created_at"] = item["created_at"].isoformat()
-        return item
-
-
-def revoke_api_key(key_id: int) -> bool:
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            UPDATE api_keys
-            SET revoked_at = NOW()
-            WHERE id = %s AND revoked_at IS NULL
-            """,
-            (key_id,),
-        )
-        return cur.rowcount > 0
 
 
 def upsert_user(

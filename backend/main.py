@@ -1,7 +1,4 @@
 from contextlib import asynccontextmanager
-import hashlib
-import hmac
-import json
 import os
 from pathlib import Path
 from urllib.parse import unquote
@@ -12,7 +9,6 @@ from fastapi.responses import Response, RedirectResponse, JSONResponse
 from pydantic import BaseModel, HttpUrl
 
 import analyzer
-import auth
 import config
 import database
 import export as job_export
@@ -29,7 +25,6 @@ from tasks import analyze_repo_task
 async def lifespan(_: FastAPI):
     config.require_admin_key_at_startup()
     database.init_schema()
-    config.require_api_keys_at_startup()
     scorer = get_scorer()
     scorer.load()
     yield
@@ -53,7 +48,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(auth.ApiKeyMiddleware)
 
 
 class AnalyzeRequest(BaseModel):
@@ -71,12 +65,6 @@ class JobStatusResponse(BaseModel):
     progress_pct: int
     progress_message: str
     error_detail: str | None = None
-
-
-class ApiKeyCreateRequest(BaseModel):
-    name: str
-    team: str = "default"
-    rate_limit_per_hour: int = 100
 
 
 # ── GitHub OAuth2 ────────────────────────────────────────────────────────────
@@ -173,7 +161,7 @@ def logout():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "telemetryx-api", "auth_required": not auth.auth_disabled()}
+    return {"status": "ok", "service": "telemetryx-api"}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -289,36 +277,6 @@ def retrain_model(admin_key: str = Depends(get_admin_key)):
         "message": f"Model retrained on {len(rows)} modules",
         "model_path": str(scorer.model is not None),
     }
-
-
-@app.post("/admin/api-keys")
-def create_api_key(body: ApiKeyCreateRequest, admin_key: str = Depends(get_admin_key)):
-    plaintext = auth.generate_api_key()
-    record = database.create_api_key_record(
-        name=body.name.strip(),
-        team=body.team.strip() or "default",
-        key_hash=auth.hash_api_key(plaintext),
-        key_prefix=auth.key_prefix(plaintext),
-        rate_limit_per_hour=max(1, body.rate_limit_per_hour),
-    )
-    return {
-        "status": "ok",
-        "api_key": plaintext,
-        "message": "Store this key securely — it will not be shown again.",
-        "record": record,
-    }
-
-
-@app.get("/admin/api-keys")
-def list_api_keys(admin_key: str = Depends(get_admin_key)):
-    return {"keys": database.list_api_keys()}
-
-
-@app.delete("/admin/api-keys/{key_id}")
-def revoke_api_key(key_id: int, admin_key: str = Depends(get_admin_key)):
-    if not database.revoke_api_key(key_id):
-        raise HTTPException(status_code=404, detail="API key not found or already revoked")
-    return {"status": "ok", "revoked_id": key_id}
 
 
 @app.get("/jobs/history")
@@ -551,48 +509,6 @@ def get_dependency_graph_legacy(job_id: int):
     return {"nodes": nodes, "links": links}
 
 
-@app.post("/webhook")
-async def github_webhook(request: Request):
-    body = await request.body()
-    secret = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
-    if secret:
-        signature = request.headers.get("X-Hub-Signature-256", "")
-        if not signature.startswith("sha256="):
-            raise HTTPException(status_code=401, detail="Missing or invalid X-Hub-Signature-256")
-        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(signature[7:], expected):
-            raise HTTPException(status_code=401, detail="Invalid webhook signature")
-    elif config.is_production():
-        raise HTTPException(
-            status_code=503,
-            detail="GITHUB_WEBHOOK_SECRET must be set before exposing /webhook in production",
-        )
-
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
-
-    repo_info = payload.get("repository", {})
-    clone_url = repo_info.get("clone_url")
-    if not clone_url:
-        raise HTTPException(status_code=400, detail="Missing repository clone_url in webhook payload")
-
-    ref = payload.get("ref", "")
-    if ref and "refs/heads/" in ref:
-        branch = ref.replace("refs/heads/", "")
-        if branch not in ("main", "master", "dev", "develop"):
-            return {
-                "status": "skipped",
-                "message": f"Push to branch '{branch}' skipped. Only main/master/dev/develop branches auto-analyzed."
-            }
-
-    job_id = database.create_job(clone_url)
-    analyze_repo_task.delay(job_id, clone_url)
-    return {"status": "queued", "job_id": job_id, "repo_url": clone_url}
-
-
 @app.get("/repos")
 def get_repositories():
     return database.get_repo_urls_list()
-

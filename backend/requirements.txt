@@ -16,8 +16,6 @@ numpy==2.2.0
 networkx==3.4.2
 fpdf2
 requests
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.4.1
 pytest==8.3.4
 httpx==0.28.1
 scipy==1.14.1
