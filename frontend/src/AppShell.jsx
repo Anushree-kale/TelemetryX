@@ -44,7 +44,7 @@ export default function AppShell() {
               className={`tab-btn ${activeTab === "tools" ? "active" : ""}`}
               onClick={() => setActiveTab("tools")}
             >
-              Hooks &amp; model
+              Admin
             </button>
           </div>
         </header>

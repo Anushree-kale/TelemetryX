@@ -168,6 +168,8 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
                       else input.value = url;
                       input.dispatchEvent(new Event("input", { bubbles: true }));
                       input.focus();
+                      const submitBtn = input.form?.querySelector('button[type="submit"]');
+                      if (submitBtn) submitBtn.click();
                     }
                   }}
                 />

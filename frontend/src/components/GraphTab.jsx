@@ -262,7 +262,7 @@ export default function GraphTab({ jobId, apiBase }) {
   const [nodeDetail, setNodeDetail] = useState(null);
   const [colorBy, setColorBy] = useState("cluster");
   const [showCoChange, setShowCoChange] = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const [viewMode, setViewMode] = useState("focused");
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({ visible: 0, total: 0 });
