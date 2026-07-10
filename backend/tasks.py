@@ -32,6 +32,7 @@ def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
     shap_rows = explain.build_shap_explanations(scorer, scored)
     for row, shap_list in zip(scored, shap_rows):
         row["_shap"] = shap_list
+        row["narrative"] = explain.build_file_narrative(row, shap_list)
     return scored
 
 

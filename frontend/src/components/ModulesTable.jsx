@@ -18,11 +18,14 @@ const RISK_COLORS = {
 
 const ITEMS_PER_PAGE = 25;
 
-function truncateSummary(text, max = 140) {
-  if (!text || typeof text !== "string") return "";
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1)}…`;
+function truncateNarrative(narrative, max = 140) {
+  if (!Array.isArray(narrative) || narrative.length === 0) return "";
+  const topSection = narrative.find(n => n.severity === "critical" || n.severity === "warning") || narrative[0];
+  if (!topSection) return "";
+  
+  const text = `${topSection.title}: ${topSection.body || ''}`.trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
 }
 
 function formatCell(key, row) {
@@ -209,9 +212,13 @@ export default function ModulesTable({ modules }) {
                             Details ↗
                           </span>
                         </div>
-                        {row.summary ? (
+                        {row.narrative && Array.isArray(row.narrative) && row.narrative.length > 0 ? (
+                          <p className="file-summary-preview" title="View details for full report">
+                            {truncateNarrative(row.narrative)}
+                          </p>
+                        ) : row.summary ? (
                           <p className="file-summary-preview" title={row.summary}>
-                            {truncateSummary(row.summary)}
+                            {truncateNarrative(row.summary)}
                           </p>
                         ) : null}
                       </div>

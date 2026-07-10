@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS module_metrics (
     cluster_id INTEGER DEFAULT 0,
     downstream_count INTEGER DEFAULT 0,
     is_critical BOOLEAN DEFAULT FALSE,
-    priority_score FLOAT DEFAULT 0
+    priority_score FLOAT DEFAULT 0,
+    narrative JSONB
 );
 
 CREATE TABLE IF NOT EXISTS co_change_pairs (
@@ -145,6 +146,7 @@ ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS downstream_count INTEGER DEF
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT FALSE;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS priority_score FLOAT DEFAULT 0;
 ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'unknown';
+ALTER TABLE module_metrics ADD COLUMN IF NOT EXISTS narrative JSONB;
 ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS privacy_mode BOOLEAN DEFAULT FALSE;
 
 -- The LSTM failure predictor and the standalone API-key auth layer were
@@ -275,7 +277,7 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                     max_fn_complexity, worst_function_name, worst_function_start,
                     worst_function_end, fan_out, debt_score, roi_days, risk_level, imports,
                     commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct,
-                    bug_fix_ratio, days_since_last_commit, co_changes
+                    bug_fix_ratio, days_since_last_commit, co_changes, narrative
                 ) VALUES (
                     %(job_id)s, %(file_path)s, %(language)s, %(cyclomatic_complexity)s,
                     %(cognitive_complexity)s, %(lines_of_code)s, %(function_count)s,
@@ -283,7 +285,7 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                     %(worst_function_name)s, %(worst_function_start)s, %(worst_function_end)s,
                     %(fan_out)s, %(debt_score)s, %(roi_days)s, %(risk_level)s, %(imports)s,
                     %(commit_timestamps)s, %(unique_author_count)s, %(unique_authors_30d)s, %(top_author_pct)s,
-                    %(bug_fix_ratio)s, %(days_since_last_commit)s, %(co_changes)s
+                    %(bug_fix_ratio)s, %(days_since_last_commit)s, %(co_changes)s, %(narrative)s
                 ) RETURNING id
                 """,
                 {
@@ -301,6 +303,7 @@ def insert_module_metrics(job_id: int, metrics: list[dict[str, Any]]) -> list[in
                     "bug_fix_ratio": float(m.get("bug_fix_ratio", 0.0)),
                     "days_since_last_commit": int(m.get("days_since_last_commit", 0)),
                     "co_changes": json.dumps(m.get("co_changes", {})),
+                    "narrative": json.dumps(m.get("narrative", [])),
                 },
             )
             module_ids.append(cur.fetchone()[0])
@@ -437,7 +440,7 @@ _MODULE_COLUMNS = """
     fan_out, debt_score, roi_days, risk_level, imports,
     commit_timestamps, unique_author_count, unique_authors_30d, top_author_pct, bug_fix_ratio,
     days_since_last_commit, co_changes, in_degree, out_degree, betweenness,
-    cluster_id, downstream_count, is_critical, priority_score
+    cluster_id, downstream_count, is_critical, priority_score, narrative
 """
 
 

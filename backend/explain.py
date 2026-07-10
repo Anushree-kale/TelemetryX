@@ -165,3 +165,187 @@ def reasons_to_text(
     don't have it yet keep working, just with less specific text.
     """
     return [_reason_sentence(r, module) for r in reasons]
+
+
+# ── Client-facing file health narrative ──────────────────────────────────────
+
+def build_file_narrative(
+    module: dict[str, Any],
+    shap_drivers: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Generate a structured, client-readable health report for a single file.
+
+    Returns a list of section dicts:
+        {
+          "severity": "critical" | "warning" | "info" | "ok" | "actions",
+          "title":    str,
+          "body":     str,
+          "actions":  list[str]  (only present on the "actions" section)
+        }
+
+    No raw metric numbers are surfaced — every sentence is written so a
+    non-technical stakeholder can understand what is wrong and why it matters.
+    """
+    sections: list[dict[str, Any]] = []
+    actions: list[str] = []
+
+    file_path = module.get("file_path", "")
+    filename = Path(file_path).name or file_path
+
+    # ── Collect signals ───────────────────────────────────────────────────────
+    cyclomatic   = float(module.get("cyclomatic_complexity") or 0)
+    max_fn       = int(module.get("max_fn_complexity") or 0)
+    worst_fn     = (module.get("worst_function_name") or "").strip()
+    worst_start  = int(module.get("worst_function_start") or 0)
+    worst_end    = int(module.get("worst_function_end") or 0)
+    loc          = int(module.get("lines_of_code") or 0)
+    fn_count     = int(module.get("function_count") or 0)
+    fan_out      = int(module.get("fan_out") or 0)
+    churn        = int(module.get("churn_90d") or 0)
+    coverage     = float(module.get("test_coverage_ratio") or 0)
+    bug_ratio    = float(module.get("bug_fix_ratio") or 0)
+    top_auth_pct = float(module.get("top_author_pct") or 0)
+    uniq_authors = int(module.get("unique_author_count") or 0)
+    days_stale   = int(module.get("days_since_last_commit") or 0)
+
+    imports_raw = str(module.get("imports") or "")
+    imports_list = [i.strip() for i in imports_raw.split(",") if i.strip()]
+
+    co_changes = module.get("co_changes") or {}
+    if isinstance(co_changes, str):
+        try:
+            co_changes = json.loads(co_changes)
+        except Exception:
+            co_changes = {}
+            
+    file_stem = Path(file_path).stem or filename
+
+    # ── Pattern Detection & Architectural Findings ────────────────────────────
+
+    # 1. Orchestration Layer / High Coupling (Fan-out)
+    if fan_out > 10:
+        sev = "critical" if fan_out > 16 else "warning"
+        named = imports_list[:4]
+        named_str = ", ".join(named) if named else "various subsystems"
+        body = (
+            f"This module has become an orchestration layer. It coordinates "
+            f"across {fan_out} other components ({named_str}). Changes in any of "
+            f"those systems are likely to require changes here as well, creating a fragility bottleneck."
+        )
+        sections.append({"severity": sev, "title": "Architectural Bottleneck", "body": body})
+        actions.append(f"Consider introducing interfaces or event-driven patterns to decouple {filename} from its dependencies.")
+    elif fan_out > 6:
+        named = imports_list[:3]
+        named_str = ", ".join(named) if named else f"{fan_out} modules"
+        body = (
+            f"This file acts as a central coordinator for {fan_out} dependencies ({named_str}…). "
+            f"It is starting to accumulate cross-domain knowledge."
+        )
+        sections.append({"severity": "info", "title": "Growing Orchestration Role", "body": body})
+
+    # 2. God Function / Overloaded Logic (Complexity)
+    if max_fn > 10 and worst_fn:
+        sev = "critical" if max_fn > 20 else "warning"
+        body = (
+            f"The `{worst_fn}()` function has absorbed too many responsibilities over time. "
+            f"With {max_fn} decision branches, it is highly likely that modifying one behavior "
+            f"will unintentionally break another. This level of complexity is a primary driver of regressions."
+        )
+        sections.append({"severity": sev, "title": "Overloaded Logic Core", "body": body})
+        actions.append(f"Extract distinct responsibilities from `{worst_fn}()` into smaller, independent functions.")
+
+    # 3. Unvalidated Active Development (Coverage + Churn)
+    if coverage < 0.15 and churn > 4:
+        sev = "critical" if coverage < 0.05 else "warning"
+        body = (
+            f"This file is being actively modified without an automated safety net. "
+            f"With {churn} edits recently and minimal test coverage ({coverage*100:.0f}%), "
+            f"the team is flying blind. Every change carries a high risk of introducing undetected regressions."
+        )
+        sections.append({"severity": sev, "title": "Unvalidated Active Development", "body": body})
+        actions.append(f"Pause feature development in {filename} to establish baseline test coverage.")
+    elif coverage < 0.15:
+        body = (
+            f"Core logic in this module lacks verification. "
+            f"With only {coverage*100:.0f}% test coverage, regressions are likely to slip through to production."
+        )
+        sections.append({"severity": "warning", "title": "Insufficient Verification", "body": body})
+
+    # 4. Corrective Churn Loop (Bug-fix ratio)
+    if bug_ratio > 0.35:
+        sev = "critical" if bug_ratio > 0.55 else "warning"
+        body = (
+            f"Most commits to this file are correcting previous changes rather than adding new functionality. "
+            f"Historically, {bug_ratio * 100:.0f}% of changes were bug fixes. This suggests developers "
+            f"frequently underestimate the complexity of modifying this module, leading to a cycle of patches."
+        )
+        sections.append({"severity": sev, "title": "Corrective Churn Loop", "body": body})
+        actions.append(f"Schedule a structural refactoring of {filename} rather than continuing to apply surface-level patches.")
+
+    # 5. Siloed Knowledge (Author concentration)
+    if uniq_authors == 1 or (top_auth_pct > 0.85 and uniq_authors > 1):
+        sev = "warning"
+        body = (
+            f"Knowledge of this module is highly concentrated in one developer "
+            f"({top_auth_pct * 100:.0f}% of all history). "
+            f"Future maintenance, debugging, and feature work will bottleneck significantly if that person is unavailable."
+        )
+        sections.append({"severity": sev, "title": "Siloed Domain Knowledge", "body": body})
+        actions.append(f"Enforce mandatory code reviews by secondary authors for all future changes to {filename}.")
+
+    # 6. Tightly Coupled Lifecycles (Co-change)
+    if isinstance(co_changes, dict) and co_changes:
+        top_co = sorted(co_changes.items(), key=lambda x: x[1], reverse=True)[:1]
+        if top_co and top_co[0][1] >= 4:
+            coupled_file = Path(top_co[0][0]).name
+            coupled_stem = Path(top_co[0][0]).stem
+            count = top_co[0][1]
+            body = (
+                f"The `{file_stem}` and `{coupled_stem}` layers have become tightly coupled over time. "
+                f"Feature work in one almost always requires modifications in the other (changed together {count} times recently). "
+                f"This lockstep evolution indicates blurred architectural boundaries."
+            )
+            sections.append({"severity": "info", "title": "Tightly Coupled Lifecycles", "body": body})
+            actions.append(f"Review the boundary between {filename} and {coupled_file} to establish a cleaner contract.")
+
+    # 7. Monolithic Growth (File size)
+    if loc > 500:
+        sev = "warning"
+        body = (
+            f"This module is accumulating unrelated responsibilities. "
+            f"At {loc} lines of code, it acts as a gravity well, pulling in logic that "
+            f"should belong elsewhere. This makes the file daunting to review and dangerous to modify."
+        )
+        sections.append({"severity": sev, "title": "Monolithic Growth", "body": body})
+        actions.append(f"Identify distinct feature sets within {filename} and extract them into their own modules.")
+
+    # 8. Abandoned Code (Staleness)
+    if days_stale > 365:
+        body = (
+            f"This module has been untouched for over a year ({days_stale} days). "
+            f"While it may be stable, it is increasingly likely that it relies on outdated patterns "
+            f"or dead code paths that no longer align with the rest of the system."
+        )
+        sections.append({"severity": "info", "title": "Stale Implementation", "body": body})
+
+    # ── Suggested actions ─────────────────────────────────────────────────────
+    if actions:
+        sections.append({
+            "severity": "actions",
+            "title": "Suggested actions",
+            "body": "",
+            "actions": actions,
+        })
+
+    # ── Healthy fallback ──────────────────────────────────────────────────────
+    if not sections:
+        sections.append({
+            "severity": "ok",
+            "title": "Stable Component",
+            "body": (
+                "This module exhibits healthy architectural patterns. Complexity is isolated, "
+                "dependencies are manageable, and change patterns indicate predictable, feature-driven development."
+            ),
+        })
+
+    return sections

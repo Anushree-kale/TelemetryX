@@ -66,6 +66,8 @@ function topCoChanges(coChanges, limit = 12) {
 export default function ModuleDetailDrawer({ module, onClose }) {
   if (!module) return null;
 
+  const narrativeSections = Array.isArray(module.narrative) ? module.narrative : [];
+
   const reasons = (module.reasons || []).map((r) => ({
     name: r.feature,
     pct: r.contribution_pct,
@@ -141,121 +143,149 @@ export default function ModuleDetailDrawer({ module, onClose }) {
           <strong>~{module.roi_days?.toFixed(1) ?? "0"} days</strong>
         </p>
 
-        {module.summary && (
+        {narrativeSections.length > 0 ? (
+          <div className="narrative-container">
+            {narrativeSections.map((section, idx) => (
+              <section key={idx} className={`drawer-section narrative-section severity-${section.severity}`}>
+                <h4>
+                  {section.severity === "critical" && "🔴 "}
+                  {section.severity === "warning" && "🟡 "}
+                  {section.severity === "info" && "⚪ "}
+                  {section.severity === "ok" && "✅ "}
+                  {section.severity === "actions" && "💡 "}
+                  {section.title}
+                </h4>
+                {section.body && <p className="drawer-summary-text">{section.body}</p>}
+                {section.actions && section.actions.length > 0 && (
+                  <ul className="narrative-actions-list">
+                    {section.actions.map((act, i) => (
+                      <li key={i}>{act}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))}
+          </div>
+        ) : module.summary ? (
           <section className="drawer-section">
             <h4>Why is this risky?</h4>
             <p className="drawer-summary-text">{module.summary}</p>
           </section>
-        )}
+        ) : null}
 
-        {reasons.length > 0 && (
-          <section className="drawer-section">
-            <h4>Top model drivers</h4>
-            <ResponsiveContainer width="100%" height={reasons.length * 44 + 16}>
-              <BarChart
-                data={reasons}
-                layout="vertical"
-                margin={{ top: 0, right: 12, left: 4, bottom: 0 }}
-              >
-                <XAxis type="number" domain={[0, 100]} hide />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={140}
-                  tick={{ fill: "#8b9cb3", fontSize: 11 }}
-                />
-                <Bar dataKey="pct" radius={[0, 4, 4, 0]} barSize={18}>
-                  {reasons.map((_, i) => (
-                    <Cell key={i} fill="#3b82f6" />
+        <details className="drawer-technical-details" style={{ marginTop: '2rem' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600, paddingBottom: '0.5rem', borderBottom: '1px solid #2a3548' }}>Technical details & raw metrics</summary>
+          <div style={{ marginTop: '1rem' }}>
+            {reasons.length > 0 && (
+              <section className="drawer-section">
+                <h4>Top model drivers</h4>
+                <ResponsiveContainer width="100%" height={reasons.length * 44 + 16}>
+                  <BarChart
+                    data={reasons}
+                    layout="vertical"
+                    margin={{ top: 0, right: 12, left: 4, bottom: 0 }}
+                  >
+                    <XAxis type="number" domain={[0, 100]} hide />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={140}
+                      tick={{ fill: "#8b9cb3", fontSize: 11 }}
+                    />
+                    <Bar dataKey="pct" radius={[0, 4, 4, 0]} barSize={18}>
+                      {reasons.map((_, i) => (
+                        <Cell key={i} fill="#3b82f6" />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <ul className="reason-list">
+                  {reasons.map((r) => (
+                    <li key={r.name}>
+                      <strong>{r.name}</strong> ({r.value}) — {r.pct}% of local score
+                      {r.shap_value != null && (
+                        <span className="muted small">
+                          {" "}
+                          · raw SHAP {Number(r.shap_value) > 0 ? "+" : ""}
+                          {Number(r.shap_value).toFixed(3)}
+                        </span>
+                      )}
+                    </li>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <ul className="reason-list">
-              {reasons.map((r) => (
-                <li key={r.name}>
-                  <strong>{r.name}</strong> ({r.value}) — {r.pct}% of local score
-                  {r.shap_value != null && (
-                    <span className="muted small">
-                      {" "}
-                      · raw SHAP {Number(r.shap_value) > 0 ? "+" : ""}
-                      {Number(r.shap_value).toFixed(3)}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="drawer-section">
-          <h4>Git activity</h4>
-          <dl className="metrics-dl">
-            {gitMetrics.map(([label, val]) => (
-              <div key={label} className="metrics-row">
-                <dt>{label}</dt>
-                <dd>{val ?? "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <section className="drawer-section">
-          <h4>Graph &amp; prioritization</h4>
-          <dl className="metrics-dl">
-            {graphMetrics.map(([label, val]) => (
-              <div key={label} className="metrics-row">
-                <dt>{label}</dt>
-                <dd>{val ?? "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        {importsPreview.length > 0 && (
-          <section className="drawer-section">
-            <h4>Imports (sample)</h4>
-            <ul className="drawer-imports-list">
-              {importsPreview.map((imp) => (
-                <li key={imp}>
-                  <code>{imp}</code>
-                </li>
-              ))}
-            </ul>
-            {importsStr.split(",").length > importsPreview.length && (
-              <p className="muted small">Showing first {importsPreview.length} of many.</p>
+                </ul>
+              </section>
             )}
-          </section>
-        )}
 
-        {coList.length > 0 && (
-          <section className="drawer-section">
-            <h4>Co-change partners</h4>
-            <p className="muted small">
-              Files that often change in the same commit as this module.
-            </p>
-            <ul className="drawer-cochanges">
-              {coList.map((row) => (
-                <li key={row.path}>
-                  <code>{row.path}</code>
-                  <span className="co-count">{row.count}×</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+            <section className="drawer-section">
+              <h4>Git activity</h4>
+              <dl className="metrics-dl">
+                {gitMetrics.map(([label, val]) => (
+                  <div key={label} className="metrics-row">
+                    <dt>{label}</dt>
+                    <dd>{val ?? "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
 
-        <section className="drawer-section">
-          <h4>Raw metrics</h4>
-          <dl className="metrics-dl">
-            {metrics.map(([label, val]) => (
-              <div key={label} className="metrics-row">
-                <dt>{label}</dt>
-                <dd>{val ?? "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+            <section className="drawer-section">
+              <h4>Graph &amp; prioritization</h4>
+              <dl className="metrics-dl">
+                {graphMetrics.map(([label, val]) => (
+                  <div key={label} className="metrics-row">
+                    <dt>{label}</dt>
+                    <dd>{val ?? "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            {importsPreview.length > 0 && (
+              <section className="drawer-section">
+                <h4>Imports (sample)</h4>
+                <ul className="drawer-imports-list">
+                  {importsPreview.map((imp) => (
+                    <li key={imp}>
+                      <code>{imp}</code>
+                    </li>
+                  ))}
+                </ul>
+                {importsStr.split(",").length > importsPreview.length && (
+                  <p className="muted small">Showing first {importsPreview.length} of many.</p>
+                )}
+              </section>
+            )}
+
+            {coList.length > 0 && (
+              <section className="drawer-section">
+                <h4>Co-change partners</h4>
+                <p className="muted small">
+                  Files that often change in the same commit as this module.
+                </p>
+                <ul className="drawer-cochanges">
+                  {coList.map((row) => (
+                    <li key={row.path}>
+                      <code>{row.path}</code>
+                      <span className="co-count">{row.count}×</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="drawer-section">
+              <h4>Raw metrics</h4>
+              <dl className="metrics-dl">
+                {metrics.map(([label, val]) => (
+                  <div key={label} className="metrics-row">
+                    <dt>{label}</dt>
+                    <dd>{val ?? "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </div>
+        </details>
       </aside>
     </>
   );
