@@ -15,7 +15,13 @@ import post_analysis
 import redis_cache
 
 from celery_app import celery_app
+from celery.exceptions import MaxRetriesExceededError
 from debt_model import get_scorer
+
+# Maximum number of automatic retries for a failed analysis task.
+_MAX_RETRIES = 3
+# Seconds between retries (doubles with retry_backoff=True: 60, 120, 240 …)
+_RETRY_COUNTDOWN = 60
 
 
 def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -35,12 +41,25 @@ def _ensure_backend_on_path() -> None:
         sys.path.insert(0, app_dir)
 
 
-@celery_app.task(bind=True, name="tasks.analyze_repo_task")
+@celery_app.task(
+    bind=True,
+    name="tasks.analyze_repo_task",
+    # Automatically retry on any exception (network blip, OOM, clone timeout, etc.)
+    autoretry_for=(Exception,),
+    max_retries=_MAX_RETRIES,
+    retry_backoff=True,       # 60s → 120s → 240s between attempts
+    retry_backoff_max=300,    # cap at 5 minutes
+    retry_jitter=True,        # randomise slightly to avoid thundering-herd
+    time_limit=1800,          # hard kill at 30 minutes
+    soft_time_limit=1500,     # log a warning at 25 minutes
+)
 def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
     _ensure_backend_on_path()
+    attempt = self.request.retries  # 0 on first run, 1 on first retry, …
     try:
+        status_msg = "Running analysis…" if attempt == 0 else f"Retrying analysis (attempt {attempt + 1}/{_MAX_RETRIES + 1})…"
         database.update_job_status(job_id, "running")
-        database.update_job_progress(job_id, 5, "Starting analysis…")
+        database.update_job_progress(job_id, 5, status_msg)
 
         cached = redis_cache.get_cached_analysis(repo_url)
         if cached:
@@ -88,9 +107,18 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             shutil.rmtree(repo_path, ignore_errors=True)
 
     except Exception as exc:
-        database.update_job_status(job_id, "failed", error_detail=str(exc))
-        database.update_job_progress(job_id, 0, "Failed")
-        raise
+        # If we still have retries left, Celery will re-queue automatically.
+        # Only mark the job as permanently failed after all retries are exhausted.
+        if self.request.retries >= _MAX_RETRIES:
+            database.update_job_status(job_id, "failed", error_detail=str(exc))
+            database.update_job_progress(job_id, 0, "Failed after all retries")
+        else:
+            next_attempt = self.request.retries + 2  # human-readable: attempt 2 of 4
+            database.update_job_progress(
+                job_id, 0,
+                f"Attempt {self.request.retries + 1} failed — retrying ({next_attempt}/{_MAX_RETRIES + 1})…"
+            )
+        raise  # Let Celery handle the retry / give-up logic
 
 
 def _persist_results(

@@ -534,8 +534,14 @@ def analyze_source_files(
         # 1. Cyclomatic & AST metric calculations
         if ext == ".py":
             cyclomatic = _cyclomatic_from_radon(source)
-            reachability_issues = analyze_reachability(source)
-            dfg_issues = analyze_dataflow(source)
+            try:
+                reachability_issues = analyze_reachability(source)
+            except Exception:
+                reachability_issues = []
+            try:
+                dfg_issues = analyze_dataflow(source)
+            except Exception:
+                dfg_issues = []
             try:
                 lizard_metrics = _metrics_from_lizard(str(file))
             except Exception:
