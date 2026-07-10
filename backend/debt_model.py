@@ -16,6 +16,10 @@ FEATURE_COLUMNS = [
     "function_count",
     "max_fn_complexity",
     "fan_out",
+    "in_degree",
+    "out_degree",
+    "unique_author_count",
+    "top_author_pct",
 ]
 
 FEATURE_LABELS = {
@@ -27,22 +31,23 @@ FEATURE_LABELS = {
     "function_count": "Function count",
     "max_fn_complexity": "Max function complexity",
     "fan_out": "Dependency fan-out",
+    "in_degree": "Incoming dependencies",
+    "out_degree": "Outgoing dependencies",
+    "unique_author_count": "Unique authors",
+    "top_author_pct": "Top author ownership",
 }
 
 
-def synthetic_label(row: dict[str, Any]) -> int:
-    """Heuristic training label — not real incident/bug data.
+def bug_hotspot_label(row: dict[str, Any]) -> int:
+    """Uses real historical evidence of bugs to label the file for training.
 
-    XGBoost currently re-learns this rule; replace with labeled outcomes
-    before presenting the debt score as ML-driven.
+    If more than 25% of the commits to this file were bug fixes, we label
+    it as a high-risk file (1). Otherwise, 0. The XGBoost model will now
+    learn which architectural patterns (complexity, churn, fan_out, etc.)
+    predict future bug hotspots.
     """
-    if (
-        float(row.get("cyclomatic_complexity", 0)) > 15
-        and int(row.get("churn_90d", 0)) > 10
-        and float(row.get("test_coverage_ratio", 0)) < 0.2
-    ):
-        return 1
-    return 0
+    bug_ratio = float(row.get("bug_fix_ratio") or 0.0)
+    return 1 if bug_ratio >= 0.25 else 0
 
 
 def risk_level(debt_score: float) -> str:
@@ -86,7 +91,7 @@ class DebtScorer:
             return
 
         X = _feature_matrix(rows)
-        y = np.array([synthetic_label(r) for r in rows], dtype=np.int32)
+        y = np.array([bug_hotspot_label(r) for r in rows], dtype=np.int32)
 
         if len(np.unique(y)) < 2:
             y[0] = 1 - y[0]

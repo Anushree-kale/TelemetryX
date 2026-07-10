@@ -117,7 +117,7 @@ def _reason_sentence(r: dict[str, Any], module: dict[str, Any] | None) -> str:
     if feature == "test_coverage_ratio":
         return (
             f"Only {value} of this file's code is covered by a matching test "
-            f"file — low test coverage is {pct:.0f}% of the risk here. Add "
+            f"file — low test file presence is {pct:.0f}% of the risk here. Add "
             f"tests before making further changes."
         )
 
@@ -125,7 +125,7 @@ def _reason_sentence(r: dict[str, Any], module: dict[str, Any] | None) -> str:
         return (
             f"This file has been edited {value} in the last 90 days — "
             f"frequent changes make up {pct:.0f}% of the risk score. Files "
-            f"that change often without matching test coverage are more "
+            f"that change often without a matching test file are more "
             f"likely to break."
         )
 
@@ -259,15 +259,15 @@ def build_file_narrative(
         sev = "critical" if coverage < 0.05 else "warning"
         body = (
             f"This file is being actively modified without an automated safety net. "
-            f"With {churn} edits recently and minimal test coverage ({coverage*100:.0f}%), "
+            f"With {churn} edits recently and minimal test file presence ({coverage*100:.0f}% ratio), "
             f"the team is flying blind. Every change carries a high risk of introducing undetected regressions."
         )
         sections.append({"severity": sev, "title": "Unvalidated Active Development", "body": body})
-        actions.append(f"Pause feature development in {filename} to establish baseline test coverage.")
+        actions.append(f"Pause feature development in {filename} to establish a matching test file.")
     elif coverage < 0.15:
         body = (
             f"Core logic in this module lacks verification. "
-            f"With only {coverage*100:.0f}% test coverage, regressions are likely to slip through to production."
+            f"With a test file ratio of only {coverage*100:.0f}%, regressions are likely to slip through to production."
         )
         sections.append({"severity": "warning", "title": "Insufficient Verification", "body": body})
 
@@ -281,6 +281,14 @@ def build_file_narrative(
         )
         sections.append({"severity": sev, "title": "Corrective Churn Loop", "body": body})
         actions.append(f"Schedule a structural refactoring of {filename} rather than continuing to apply surface-level patches.")
+    elif bug_ratio > 0.20:
+        pct = f"{bug_ratio * 100:.0f}"
+        body = (
+            f"{pct}% of commits to this file were bug fixes — above average. "
+            f"This file may benefit from clearer logic, the presence of test files, "
+            f"or a review of its core design."
+        )
+        sections.append({"severity": "info", "title": "Above-average bug fix rate", "body": body})
 
     # 5. Siloed Knowledge (Author concentration)
     if uniq_authors == 1 or (top_auth_pct > 0.85 and uniq_authors > 1):
