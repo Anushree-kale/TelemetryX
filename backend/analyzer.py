@@ -21,9 +21,18 @@ from dfg_analyzer import analyze_dataflow
 def clone_repo(repo_url: str) -> tuple[str, Repo]:
     tmp_dir = tempfile.mkdtemp(prefix="telemetryx_")
     clone_kwargs: dict[str, Any] = {}
-    if GIT_CLONE_DEPTH > 0:
-        clone_kwargs["depth"] = GIT_CLONE_DEPTH
-    repo = Repo.clone_from(repo_url, tmp_dir, **clone_kwargs)
+    
+    # Use shallow-since for the last 120 days to ensure we get all 90-day data accurately without full clone
+    since_date = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
+    clone_kwargs["shallow_since"] = since_date
+    clone_kwargs["single_branch"] = True
+    
+    try:
+        repo = Repo.clone_from(repo_url, tmp_dir, **clone_kwargs)
+    except Exception:
+        # Fallback to standard clone if shallow_since fails (e.g., local repo, unsupported git server)
+        repo = Repo.clone_from(repo_url, tmp_dir, depth=MAX_GIT_COMMITS)
+        
     return tmp_dir, repo
 
 
@@ -234,15 +243,7 @@ def _build_test_loc_index(source_files: list[Path], root: Path) -> dict[str, int
     return index
 
 
-def compute_churn_90d(repo: Repo, rel_path: str) -> int:
-    since = datetime.now(timezone.utc) - timedelta(days=90)
-    try:
-        commits = list(
-            repo.iter_commits(since=since.isoformat(), paths=rel_path, max_count=500)
-        )
-        return len(commits)
-    except Exception:
-        return 0
+
 
 
 # Enterprise tier — first-class analysis (complexity + imports + test pairing)
@@ -307,7 +308,7 @@ SUPPORTED_EXTENSIONS = LIZARD_NATIVE_EXTENSIONS.union({
 })
 
 
-BUG_KEYWORDS = ("fix", "bug", "hotfix", "revert", "patch", "broken")
+BUG_REGEX = re.compile(r'\b(?:fix|bug|hotfix|revert|patch|broken)\b', re.IGNORECASE)
 
 
 def _commit_changed_files(commit) -> list[str]:
@@ -391,11 +392,16 @@ def extract_git_signals(
         authors: list[str] = []
         bug_commits_count = 0
 
+        churn_90d = sum(
+            1 for c in commits_for_file 
+            if datetime.fromtimestamp(c.committed_date, tz=timezone.utc) >= since_90d
+        )
+
         for c in commits_for_file:
             timestamps.append(c.committed_date)
             authors.append(c.author.name or "unknown")
-            msg = (c.message or "").lower()
-            if any(k in msg for k in BUG_KEYWORDS):
+            msg = c.message or ""
+            if BUG_REGEX.search(msg):
                 bug_commits_count += 1
 
         unique_author_count = len(set(authors))
@@ -439,6 +445,7 @@ def extract_git_signals(
             "bug_fix_ratio": bug_fix_ratio,
             "days_since_last_commit": days_since_last_commit,
             "co_changes": co_changes,
+            "churn_90d": churn_90d,
         }
 
     return results, co_change_pairs
@@ -517,21 +524,22 @@ def analyze_source_files(
     test_loc_index = _build_test_loc_index(source_files, root)
     results: list[dict[str, Any]] = []
 
-    for file in source_files:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def process_file(file: Path) -> dict[str, Any] | None:
         rel_path = str(file.relative_to(root)).replace("\\", "/")
         if is_test_file(rel_path):
-            continue
+            return None
 
         try:
             source = file.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            continue
+            return None
 
         ext = file.suffix.lower()
 
         reachability_issues = []
         dfg_issues = []
-        # 1. Cyclomatic & AST metric calculations
         if ext == ".py":
             cyclomatic = _cyclomatic_from_radon(source)
             try:
@@ -571,7 +579,6 @@ def analyze_source_files(
                     "worst_function_end": 0,
                 }
         else:
-            # Safe Fallback for non-AST languages (like SQL, HTML, CSS, JSON, YAML)
             cyclomatic = 1.0
             nloc = len([line for line in source.splitlines() if line.strip()])
             lizard_metrics = {
@@ -589,7 +596,6 @@ def analyze_source_files(
         test_loc = test_loc_index.get(stem_key, 0)
         coverage_ratio = round(min(1.0, test_loc / source_loc), 4)
 
-        churn = compute_churn_90d(git_repo, rel_path) if git_repo else 0
         imports_list = _extract_imports_multi(file, source)
 
         signals = git_signals.get(rel_path, {
@@ -599,36 +605,42 @@ def analyze_source_files(
             "top_author_pct": 0.0,
             "bug_fix_ratio": 0.0,
             "days_since_last_commit": 0,
-            "co_changes": {}
+            "co_changes": {},
+            "churn_90d": 0,
         })
 
-        results.append(
-            {
-                "file_path": rel_path,
-                "language": detect_language(rel_path),
-                "cyclomatic_complexity": round(cyclomatic, 2),
-                "cognitive_complexity": lizard_metrics["cognitive_complexity"],
-                "lines_of_code": lizard_metrics["lines_of_code"],
-                "function_count": lizard_metrics["function_count"],
-                "max_fn_complexity": lizard_metrics["max_fn_complexity"],
-                "worst_function_name": lizard_metrics.get("worst_function_name", ""),
-                "worst_function_start": lizard_metrics.get("worst_function_start", 0),
-                "worst_function_end": lizard_metrics.get("worst_function_end", 0),
-                "fan_out": len(imports_list),
-                "imports": ",".join(imports_list),
-                "churn_90d": churn,
-                "test_coverage_ratio": coverage_ratio,
-                "commit_timestamps": signals["commit_timestamps"],
-                "unique_author_count": signals["unique_author_count"],
-                "unique_authors_30d": signals.get("unique_authors_30d", 0),
-                "top_author_pct": signals["top_author_pct"],
-                "bug_fix_ratio": signals["bug_fix_ratio"],
-                "days_since_last_commit": signals["days_since_last_commit"],
-                "co_changes": signals["co_changes"],
-                "reachability_issues": reachability_issues,
-                "dfg_issues": dfg_issues,
-            }
-        )
+        return {
+            "file_path": rel_path,
+            "language": detect_language(rel_path),
+            "cyclomatic_complexity": round(cyclomatic, 2),
+            "cognitive_complexity": lizard_metrics["cognitive_complexity"],
+            "lines_of_code": lizard_metrics["lines_of_code"],
+            "function_count": lizard_metrics["function_count"],
+            "max_fn_complexity": lizard_metrics["max_fn_complexity"],
+            "worst_function_name": lizard_metrics.get("worst_function_name", ""),
+            "worst_function_start": lizard_metrics.get("worst_function_start", 0),
+            "worst_function_end": lizard_metrics.get("worst_function_end", 0),
+            "fan_out": len(imports_list),
+            "imports": ",".join(imports_list),
+            "churn_90d": signals.get("churn_90d", 0),
+            "test_coverage_ratio": coverage_ratio,
+            "commit_timestamps": signals["commit_timestamps"],
+            "unique_author_count": signals["unique_author_count"],
+            "unique_authors_30d": signals.get("unique_authors_30d", 0),
+            "top_author_pct": signals["top_author_pct"],
+            "bug_fix_ratio": signals["bug_fix_ratio"],
+            "days_since_last_commit": signals["days_since_last_commit"],
+            "co_changes": signals["co_changes"],
+            "reachability_issues": reachability_issues,
+            "dfg_issues": dfg_issues,
+        }
+
+    with ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) * 4)) as executor:
+        futures = {executor.submit(process_file, f): f for f in source_files}
+        for future in as_completed(futures):
+            res = future.result()
+            if res is not None:
+                results.append(res)
 
     return results, co_change_pairs
 
