@@ -169,9 +169,12 @@ def reasons_to_text(
 
 # ── Client-facing file health narrative ──────────────────────────────────────
 
+import random
+
 def build_file_narrative(
     module: dict[str, Any],
     shap_drivers: list[dict[str, Any]] | None = None,
+    repo_stats: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate a structured, client-readable health report for a single file.
 
@@ -219,85 +222,94 @@ def build_file_narrative(
             co_changes = {}
             
     file_stem = Path(file_path).stem or filename
+    stats = repo_stats or {}
 
     # ── Pattern Detection & Architectural Findings ────────────────────────────
 
     # 1. Orchestration Layer / High Coupling (Fan-out)
-    if fan_out > 10:
-        sev = "critical" if fan_out > 16 else "warning"
+    fan_out_p90 = max(6, stats.get("p90_fan_out", 10))
+    fan_out_p75 = max(4, stats.get("p75_fan_out", 6))
+    
+    if fan_out > fan_out_p90:
+        sev = "critical" if fan_out > max(10, stats.get("p95_fan_out", 16)) else "warning"
         named = imports_list[:4]
         named_str = ", ".join(named) if named else "various subsystems"
-        body = (
-            f"This module has become an orchestration layer. It coordinates "
-            f"across {fan_out} other components ({named_str}). Changes in any of "
-            f"those systems are likely to require changes here as well, creating a fragility bottleneck."
-        )
+        body = random.choice([
+            f"This module has become an orchestration layer. It coordinates across {fan_out} other components ({named_str}). Changes in any of those systems are likely to require changes here as well, creating a fragility bottleneck.",
+            f"Acting as a heavy coordinator, this file connects {fan_out} dependencies ({named_str}). Such high coupling means bugs in downstream modules often surface here.",
+            f"With {fan_out} imports ({named_str}), this module is tightly wired to the rest of the codebase, making it highly susceptible to breaking changes."
+        ])
         sections.append({"severity": sev, "title": "Architectural Bottleneck", "body": body})
         actions.append(f"Consider introducing interfaces or event-driven patterns to decouple {filename} from its dependencies.")
-    elif fan_out > 6:
+    elif fan_out > fan_out_p75:
         named = imports_list[:3]
         named_str = ", ".join(named) if named else f"{fan_out} modules"
-        body = (
-            f"This file acts as a central coordinator for {fan_out} dependencies ({named_str}…). "
-            f"It is starting to accumulate cross-domain knowledge."
-        )
+        body = random.choice([
+            f"This file acts as a central coordinator for {fan_out} dependencies ({named_str}…). It is starting to accumulate cross-domain knowledge.",
+            f"This module touches {fan_out} different imports ({named_str}…), slowly turning into a cross-domain mediator."
+        ])
         sections.append({"severity": "info", "title": "Growing Orchestration Role", "body": body})
 
     # 2. God Function / Overloaded Logic (Complexity)
-    if max_fn > 10 and worst_fn:
-        sev = "critical" if max_fn > 20 else "warning"
-        body = (
-            f"The `{worst_fn}()` function has absorbed too many responsibilities over time. "
-            f"With {max_fn} decision branches, it is highly likely that modifying one behavior "
-            f"will unintentionally break another. This level of complexity is a primary driver of regressions."
-        )
+    max_fn_p75 = max(5, stats.get("p75_max_fn", 10))
+    if max_fn > max_fn_p75 and worst_fn:
+        sev = "critical" if max_fn > max(10, stats.get("p90_max_fn", 20)) else "warning"
+        body = random.choice([
+            f"The `{worst_fn}()` function has absorbed too many responsibilities over time. With {max_fn} decision branches, it is highly likely that modifying one behavior will unintentionally break another.",
+            f"`{worst_fn}()` is overly complex (complexity: {max_fn}). Functions of this size often hide subtle edge-case bugs and slow down feature development.",
+            f"With {max_fn} conditional branches, `{worst_fn}()` is a major cognitive bottleneck. Touching this logic requires carrying too much context in your head."
+        ])
         sections.append({"severity": sev, "title": "Overloaded Logic Core", "body": body})
         actions.append(f"Extract distinct responsibilities from `{worst_fn}()` into smaller, independent functions.")
 
     # 3. Unvalidated Active Development (Coverage + Churn)
-    if coverage < 0.15 and churn > 4:
+    churn_p75 = max(3, stats.get("p75_churn", 4))
+    if coverage < 0.15 and churn > churn_p75:
         sev = "critical" if coverage < 0.05 else "warning"
-        body = (
-            f"This file is being actively modified without an automated safety net. "
-            f"With {churn} edits recently and minimal test file presence ({coverage*100:.0f}% ratio), "
-            f"the team is flying blind. Every change carries a high risk of introducing undetected regressions."
-        )
+        body = random.choice([
+            f"This file is being actively modified without an automated safety net. With {churn} edits recently and minimal test file presence ({coverage*100:.0f}% ratio), the team is flying blind.",
+            f"High recent churn ({churn} edits) combined with very low test presence ({coverage*100:.0f}%) makes this file a prime candidate for regressions.",
+            f"Developers are frequently changing this code ({churn} times in 90 days), but with only {coverage*100:.0f}% test coverage, there is no quick way to verify those changes."
+        ])
         sections.append({"severity": sev, "title": "Unvalidated Active Development", "body": body})
         actions.append(f"Pause feature development in {filename} to establish a matching test file.")
     elif coverage < 0.15:
-        body = (
-            f"Core logic in this module lacks verification. "
-            f"With a test file ratio of only {coverage*100:.0f}%, regressions are likely to slip through to production."
-        )
+        body = random.choice([
+            f"Core logic in this module lacks verification. With a test file ratio of only {coverage*100:.0f}%, regressions are likely to slip through to production.",
+            f"Only {coverage*100:.0f}% test coverage leaves this file exposed to silent failures."
+        ])
         sections.append({"severity": "warning", "title": "Insufficient Verification", "body": body})
 
     # 4. Corrective Churn Loop (Bug-fix ratio)
-    if bug_ratio > 0.35:
-        sev = "critical" if bug_ratio > 0.55 else "warning"
-        body = (
-            f"Most commits to this file are correcting previous changes rather than adding new functionality. "
-            f"Historically, {bug_ratio * 100:.0f}% of changes were bug fixes. This suggests developers "
-            f"frequently underestimate the complexity of modifying this module, leading to a cycle of patches."
-        )
+    bug_p75 = max(0.15, stats.get("p75_bug_ratio", 0.35))
+    bug_p90 = max(0.30, stats.get("p90_bug_ratio", 0.55))
+    bug_p50 = max(0.10, stats.get("p50_bug_ratio", 0.20))
+
+    if bug_ratio > bug_p75:
+        sev = "critical" if bug_ratio > bug_p90 else "warning"
+        body = random.choice([
+            f"Most commits to this file are correcting previous changes. Historically, {bug_ratio * 100:.0f}% of changes were bug fixes, indicating a corrective churn loop.",
+            f"With {bug_ratio * 100:.0f}% of its commits marked as fixes, this file is trapping developers in a cycle of patches rather than feature work.",
+            f"This file is highly unstable — {bug_ratio * 100:.0f}% of its history is just fixing bugs. Surface-level patches are no longer enough."
+        ])
         sections.append({"severity": sev, "title": "Corrective Churn Loop", "body": body})
         actions.append(f"Schedule a structural refactoring of {filename} rather than continuing to apply surface-level patches.")
-    elif bug_ratio > 0.20:
+    elif bug_ratio > bug_p50:
         pct = f"{bug_ratio * 100:.0f}"
-        body = (
-            f"{pct}% of commits to this file were bug fixes — above average. "
-            f"This file may benefit from clearer logic, the presence of test files, "
-            f"or a review of its core design."
-        )
+        body = random.choice([
+            f"{pct}% of commits to this file were bug fixes — above average. This file may benefit from clearer logic or design review.",
+            f"An above-average bug fix rate ({pct}%) suggests this module is slightly more error-prone than the rest of the codebase."
+        ])
         sections.append({"severity": "info", "title": "Above-average bug fix rate", "body": body})
 
     # 5. Siloed Knowledge (Author concentration)
     if uniq_authors == 1 or (top_auth_pct > 0.85 and uniq_authors > 1):
         sev = "warning"
-        body = (
-            f"Knowledge of this module is highly concentrated in one developer "
-            f"({top_auth_pct * 100:.0f}% of all history). "
-            f"Future maintenance, debugging, and feature work will bottleneck significantly if that person is unavailable."
-        )
+        body = random.choice([
+            f"Knowledge of this module is highly concentrated ({top_auth_pct * 100:.0f}% of history by one author). Future work will bottleneck if they are unavailable.",
+            f"A single developer wrote {top_auth_pct * 100:.0f}% of this file. This represents a significant 'bus factor' risk for this area of the codebase.",
+            f"This file is a knowledge silo. With {top_auth_pct * 100:.0f}% authorship concentrated in one person, the broader team lacks context here."
+        ])
         sections.append({"severity": sev, "title": "Siloed Domain Knowledge", "body": body})
         actions.append(f"Enforce mandatory code reviews by secondary authors for all future changes to {filename}.")
 
@@ -317,13 +329,14 @@ def build_file_narrative(
             actions.append(f"Review the boundary between {filename} and {coupled_file} to establish a cleaner contract.")
 
     # 7. Monolithic Growth (File size)
-    if loc > 500:
+    loc_p90 = max(200, stats.get("p90_loc", 500))
+    if loc > loc_p90:
         sev = "warning"
-        body = (
-            f"This module is accumulating unrelated responsibilities. "
-            f"At {loc} lines of code, it acts as a gravity well, pulling in logic that "
-            f"should belong elsewhere. This makes the file daunting to review and dangerous to modify."
-        )
+        body = random.choice([
+            f"This module is accumulating unrelated responsibilities. At {loc} lines of code, it acts as a gravity well, pulling in logic that should belong elsewhere.",
+            f"With {loc} lines, this file is significantly larger than most of the codebase. Large files are inherently harder to review and more prone to merge conflicts.",
+            f"At {loc} lines, this file is becoming a monolith. It is daunting to read and dangerous to modify without deep context."
+        ])
         sections.append({"severity": sev, "title": "Monolithic Growth", "body": body})
         actions.append(f"Identify distinct feature sets within {filename} and extract them into their own modules.")
 

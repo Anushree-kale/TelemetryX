@@ -24,7 +24,7 @@ _MAX_RETRIES = 3
 _RETRY_COUNTDOWN = 60
 
 
-def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _enrich_metrics(raw_metrics: list[dict[str, Any]], repo_stats: dict[str, float] | None = None) -> list[dict[str, Any]]:
     scorer = get_scorer()
     if scorer.model is None:
         scorer.load()
@@ -32,8 +32,37 @@ def _enrich_metrics(raw_metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
     shap_rows = explain.build_shap_explanations(scorer, scored)
     for row, shap_list in zip(scored, shap_rows):
         row["_shap"] = shap_list
-        row["narrative"] = explain.build_file_narrative(row, shap_list)
+        row["narrative"] = explain.build_file_narrative(row, shap_list, repo_stats=repo_stats)
     return scored
+
+
+def _compute_repo_stats(metrics: list[dict[str, Any]]) -> dict[str, float]:
+    if not metrics:
+        return {}
+    
+    import numpy as np
+    
+    def extract(key):
+        return [float(m.get(key, 0) or 0) for m in metrics]
+
+    locs = extract("lines_of_code")
+    fan_outs = extract("fan_out")
+    max_fns = extract("max_fn_complexity")
+    churns = extract("churn_90d")
+    bug_ratios = extract("bug_fix_ratio")
+
+    return {
+        "p90_loc": float(np.percentile(locs, 90)),
+        "p75_fan_out": float(np.percentile(fan_outs, 75)),
+        "p90_fan_out": float(np.percentile(fan_outs, 90)),
+        "p95_fan_out": float(np.percentile(fan_outs, 95)),
+        "p75_max_fn": float(np.percentile(max_fns, 75)),
+        "p90_max_fn": float(np.percentile(max_fns, 90)),
+        "p75_churn": float(np.percentile(churns, 75)),
+        "p50_bug_ratio": float(np.percentile(bug_ratios, 50)),
+        "p75_bug_ratio": float(np.percentile(bug_ratios, 75)),
+        "p90_bug_ratio": float(np.percentile(bug_ratios, 90)),
+    }
 
 
 def _ensure_backend_on_path() -> None:
@@ -68,7 +97,8 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             modules = cached.get("modules", cached) if isinstance(cached, dict) else cached
             co_pairs = cached.get("co_change_pairs", []) if isinstance(cached, dict) else []
 
-            enriched = _enrich_metrics(modules)
+            repo_stats = _compute_repo_stats(modules)
+            enriched = _enrich_metrics(modules, repo_stats)
             database.update_job_progress(job_id, 85, "Saving results…")
             _persist_results(job_id, enriched, co_pairs)
             post_analysis.run_post_analysis(job_id, co_change_pairs=co_pairs)
@@ -92,7 +122,8 @@ def analyze_repo_task(self, job_id: int, repo_url: str) -> dict[str, Any]:
             )
 
             database.update_job_progress(job_id, 75, "Running models…")
-            enriched = _enrich_metrics(raw_metrics)
+            repo_stats = _compute_repo_stats(raw_metrics)
+            enriched = _enrich_metrics(raw_metrics, repo_stats)
 
             database.update_job_progress(job_id, 90, "Saving results…")
             _persist_results(job_id, enriched, co_change_pairs)

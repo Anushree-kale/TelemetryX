@@ -19,6 +19,7 @@ from debt_model import MODEL_PATH, get_scorer
 from explain import reasons_to_text
 from graph_builder import graph_from_stored_json
 from tasks import analyze_repo_task
+import branch_analyzer
 
 
 @asynccontextmanager
@@ -57,6 +58,11 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     job_id: int
     status: str
+
+
+class AnalyzeBranchRequest(BaseModel):
+    repo_url: HttpUrl
+    branch_name: str
 
 
 class JobStatusResponse(BaseModel):
@@ -170,6 +176,18 @@ def analyze_repo_endpoint(body: AnalyzeRequest):
     job_id = database.create_job(repo_url)
     analyze_repo_task.delay(job_id, repo_url)
     return AnalyzeResponse(job_id=job_id, status="pending")
+
+
+@app.post("/analyze/branch")
+def analyze_branch_endpoint(body: AnalyzeBranchRequest):
+    repo_url = str(body.repo_url)
+    branch_name = body.branch_name
+    try:
+        return branch_analyzer.analyze_branch_noise(repo_url, branch_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/jobs/latest")
