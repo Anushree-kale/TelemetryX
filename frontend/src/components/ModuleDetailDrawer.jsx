@@ -129,6 +129,20 @@ export default function ModuleDetailDrawer({ module, onClose }) {
             >
               {risk}
             </span>
+            {module.trend && (
+              <span 
+                className={`trend-indicator trend-${module.trend}`} 
+                style={{ 
+                  marginLeft: "0.5rem", 
+                  fontSize: "0.85em", 
+                  fontWeight: 600,
+                  color: module.trend === "worsening" ? "#ef4444" : module.trend === "improving" ? "#22c55e" : "#8b9cb3"
+                }}
+                title={`Trend over last 3 scans: ${module.trend}`}
+              >
+                {module.trend === "worsening" ? "↑ Worsening" : module.trend === "improving" ? "↓ Improving" : "— Stable"}
+              </span>
+            )}
             <h3 className="drawer-title">{module.file_path}</h3>
           </div>
           <button type="button" className="drawer-close" onClick={onClose}>
@@ -162,6 +176,22 @@ export default function ModuleDetailDrawer({ module, onClose }) {
                       <li key={i}>{act}</li>
                     ))}
                   </ul>
+                )}
+                {section.evidence && section.evidence.length > 0 && (
+                  <details className="narrative-evidence" style={{ marginTop: '0.75rem', fontSize: '0.9em', color: '#8b9cb3' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Evidence ({section.evidence.length} commits)</summary>
+                    <ul className="evidence-list" style={{ marginTop: '0.5rem', listStyle: 'none', paddingLeft: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {section.evidence.map((ev, i) => (
+                        <li key={i}>
+                          <a href={ev.link || "#"} target="_blank" rel="noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }} className="commit-hash">
+                            {ev.hash?.substring(0,7) || 'Commit'}
+                          </a>
+                          <span className="commit-date" style={{ opacity: 0.8 }}> ({ev.date})</span>: 
+                          <span className="commit-msg" style={{ marginLeft: '0.25rem' }}>{ev.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 )}
               </section>
             ))}

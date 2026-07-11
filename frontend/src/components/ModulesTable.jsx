@@ -223,14 +223,27 @@ export default function ModulesTable({ modules }) {
                         ) : null}
                       </div>
                     ) : col.key === "risk_level" ? (
-                      <span
-                        className="risk-pill"
-                        style={{
-                          background: RISK_COLORS[row.risk_level] || RISK_COLORS.low,
-                        }}
-                      >
-                        {formatCell(col.key, row)}
-                      </span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          className="risk-pill"
+                          style={{
+                            background: RISK_COLORS[row.risk_level] || RISK_COLORS.low,
+                          }}
+                        >
+                          {formatCell(col.key, row)}
+                        </span>
+                        {row.trend && (
+                          <span 
+                            title={`Trend over last 3 scans: ${row.trend}`}
+                            style={{
+                              fontSize: "1.1em",
+                              color: row.trend === "worsening" ? "#ef4444" : row.trend === "improving" ? "#22c55e" : "#8b9cb3"
+                            }}
+                          >
+                            {row.trend === "worsening" ? "↑" : row.trend === "improving" ? "↓" : "—"}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       formatCell(col.key, row)
                     )}
