@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 MAX_ANALYZED_FILES = int(os.getenv("ANALYZER_MAX_FILES", "2000"))
-MAX_GIT_COMMITS = int(os.getenv("ANALYZER_MAX_COMMITS", "2500"))
-GIT_CLONE_DEPTH = int(os.getenv("GIT_CLONE_DEPTH", "500"))
+MAX_GIT_COMMITS = int(os.getenv("ANALYZER_MAX_COMMITS", "10000"))
+GIT_CLONE_DEPTH = int(os.getenv("GIT_CLONE_DEPTH", "10000"))
 
 import lizard
 from git import Repo
@@ -22,16 +22,11 @@ def clone_repo(repo_url: str) -> tuple[str, Repo]:
     tmp_dir = tempfile.mkdtemp(prefix="telemetryx_")
     clone_kwargs: dict[str, Any] = {}
     
-    # Use shallow-since for the last 120 days to ensure we get all 90-day data accurately without full clone
-    since_date = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
-    clone_kwargs["shallow_since"] = since_date
+    if GIT_CLONE_DEPTH > 0:
+        clone_kwargs["depth"] = GIT_CLONE_DEPTH
     clone_kwargs["single_branch"] = True
     
-    try:
-        repo = Repo.clone_from(repo_url, tmp_dir, **clone_kwargs)
-    except Exception:
-        # Fallback to standard clone if shallow_since fails (e.g., local repo, unsupported git server)
-        repo = Repo.clone_from(repo_url, tmp_dir, depth=MAX_GIT_COMMITS)
+    repo = Repo.clone_from(repo_url, tmp_dir, **clone_kwargs)
         
     return tmp_dir, repo
 
