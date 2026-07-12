@@ -1,6 +1,14 @@
-/* TelemetryX — professional UI + scan experience */
+/* TelemetryX — warm & inviting professional UI */
 
 :root {
+  /* Warm & Inviting Palette */
+  --amber-primary: #f59e0b;
+  --coral-accent: #ff6b6b;
+  --rose-soft: #fca5a5;
+  --peach-light: #fed7aa;
+  --warm-gold: #fbbf24;
+  
+  /* Core Colors */
   --success: #3fb950;
   --danger: #f85149;
   --bg: #0d1117;
@@ -13,11 +21,14 @@
   --text-on-dark: #f0f6fc;
   --text-muted: #8b949e;
   --text-muted-dark: #8b949e;
-  --accent: #238636;
-  --accent-emphasis: #238636;
-  --accent-hover: #2ea043;
-  --accent-bright: #3fb950;
-  --accent-soft: rgba(63, 185, 80, 0.12);
+  
+  /* Updated Accent Colors - Warm Tones */
+  --accent: #f59e0b;
+  --accent-emphasis: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-bright: #fcd34d;
+  --accent-soft: rgba(245, 158, 11, 0.12);
+  
   --rail-width: 72px;
   --rail-expanded: 260px;
 }

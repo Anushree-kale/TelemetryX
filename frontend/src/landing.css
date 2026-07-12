@@ -8,7 +8,12 @@
   --lp-text: #f0f0f0;
   --lp-muted: #888;
   --lp-dim: #555;
-  --lp-accent: #e8e8e8;
+  /* Warm & Inviting Accent Colors */
+  --lp-accent: #f59e0b;
+  --lp-accent-coral: #ff6b6b;
+  --lp-accent-rose: #fca5a5;
+  --lp-accent-peach: #fed7aa;
+  --lp-accent-gold: #fbbf24;
   --lp-nav-width: 72px;
   position: relative;
   min-height: 100vh;
@@ -24,8 +29,9 @@
   z-index: 0;
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(ellipse 800px 600px at 50% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 80%);
+  background-size: 60px 60px, 60px 60px, 100% 100%;
   opacity: 0.35;
 }
 
@@ -96,6 +102,7 @@
 .landing-nav__btn--active .landing-nav__dot {
   background: var(--lp-accent);
   transform: scale(1.35);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
 }
 
 .landing-nav__label {
@@ -164,6 +171,56 @@
   position: relative;
 }
 
+.landing-hero__container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.landing-hero__visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.landing-hero__image {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.2));
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .landing-hero__container {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .landing-hero__visual {
+    min-height: 300px;
+  }
+
+  .landing-hero__image {
+    max-width: 350px;
+  }
+}
+
 .landing-hero__rail-label {
   position: absolute;
   left: -3.5rem;
@@ -186,6 +243,10 @@
   font-weight: 400;
   letter-spacing: 0.04em;
   line-height: 0.88;
+  background: linear-gradient(135deg, var(--lp-text) 0%, var(--lp-accent) 50%, var(--lp-accent-coral) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .landing-hero__subtitle {
@@ -218,9 +279,9 @@
   align-items: center;
   gap: 0.65rem;
   padding: 0.85rem 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: transparent;
-  color: var(--lp-text);
+  border: 2px solid var(--lp-accent);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--lp-accent);
   font-family: ui-monospace, monospace;
   font-size: 0.72rem;
   font-weight: 600;
@@ -228,13 +289,15 @@
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  transition: border-color 0.3s, background 0.3s, transform 0.3s, box-shadow 0.3s;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0);
 }
 
 .landing-hero__cta:hover {
-  border-color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 255, 255, 0.06);
-  transform: translateY(-1px);
+  border-color: var(--lp-accent-gold);
+  background: rgba(245, 158, 11, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
 }
 
 .landing-hero__cta-arrow {
@@ -328,11 +391,17 @@
   transform: translateY(-6px);
 }
 
+.landing-feature-card:hover .landing-feature-card__inner {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
 .landing-feature-card__inner {
   position: relative;
   padding: 2rem 1.75rem;
   background: var(--lp-surface);
   border: 1px solid var(--lp-border);
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .landing-feature-card__meta {
@@ -428,12 +497,13 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
   cursor: default;
-  transition: border-color 0.4s;
+  transition: border-color 0.4s, box-shadow 0.4s;
 }
 
 .landing-cap-card:hover,
 .landing-cap-card--active {
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
 }
 
 .landing-cap-card__bg {
