@@ -41,7 +41,7 @@ export default function WorkspaceTopbar({
                   <button
                     key={p.id}
                     type="button"
-                    className={`tx-tab ${activePanel === p.id ? "active" : ""}`}
+                    className={`tx-tab cursor-target ${activePanel === p.id ? "active" : ""}`}
                     onClick={() => onSelect(p.id)}
                     disabled={isDisabled}
                     title={p.hint}

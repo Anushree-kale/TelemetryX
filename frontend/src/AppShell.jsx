@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import DashboardWorkspace from "./components/DashboardWorkspace";
 import DeveloperTools from "./components/DeveloperTools";
 import InterfaceBackground from "./components/InterfaceBackground";
+import TargetCursor from "./components/TargetCursor";
 import { apiFetch } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -25,6 +26,14 @@ export default function AppShell() {
 
   return (
     <InterfaceBackground className="app-shell-wrap">
+      <TargetCursor
+        spinDuration={2}
+        hideDefaultCursor
+        parallaxOn
+        hoverDuration={0.2}
+        cursorColor="#ffffff"
+        cursorColorOnTarget="#B497CF"
+      />
       <div className="app-shell app-shell--dashboard">
         <header className="app-header">
           <div className="app-brand">
