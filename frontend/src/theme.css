@@ -1,7 +1,7 @@
 /* TelemetryX — professional UI + scan experience */
 
 :root {
-  --success: #3fb950;
+  --success: #c084fc;
   --danger: #f85149;
   --bg: #0d1117;
   --bg-stage: #010409;
@@ -13,11 +13,11 @@
   --text-on-dark: #f0f6fc;
   --text-muted: #8b949e;
   --text-muted-dark: #8b949e;
-  --accent: #238636;
-  --accent-emphasis: #238636;
-  --accent-hover: #2ea043;
-  --accent-bright: #3fb950;
-  --accent-soft: rgba(63, 185, 80, 0.12);
+  --accent: #A855F7;
+  --accent-emphasis: #A855F7;
+  --accent-hover: #9333ea;
+  --accent-bright: #c084fc;
+  --accent-soft: rgba(168, 85, 247, 0.12);
   --rail-width: 72px;
   --rail-expanded: 260px;
 }
@@ -497,13 +497,13 @@ body {
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
-  background: rgba(16, 185, 129, 0.22);
-  color: #6ee7b7;
+  background: rgba(168, 85, 247, 0.22);
+  color: #c084fc;
   padding: 0.3rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.8rem;
   font-weight: 600;
-  border: 1px solid rgba(110, 231, 183, 0.55);
+  border: 1px solid rgba(168, 85, 247, 0.55);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
@@ -623,7 +623,7 @@ body {
 }
 
 .app-main:not(:has(.dashboard-shell)) .devtools-retrain-msg--ok {
-  color: #16a34a;
+  color: #A855F7;
 }
 
 .app-main:not(:has(.dashboard-shell)) .devtools-retrain-msg--err {

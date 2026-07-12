@@ -1,4 +1,4 @@
-/* TelemetryX post-login — redesign v2 + GitHub green accents */
+/* TelemetryX post-login — redesign v2 + purple accents */
 
 :root {
   --tx-bg: #0a0a0a;
@@ -9,10 +9,10 @@
   --tx-text: #f0f0f0;
   --tx-muted: #888;
   --tx-dim: #555;
-  --tx-green: #3fb950;
-  --tx-green-dim: #238636;
-  --tx-green-glow: rgba(63, 185, 80, 0.55);
-  --tx-green-soft: rgba(63, 185, 80, 0.14);
+  --tx-green: #c084fc;
+  --tx-green-dim: #A855F7;
+  --tx-green-glow: rgba(168, 85, 247, 0.55);
+  --tx-green-soft: rgba(168, 85, 247, 0.14);
   --tx-w100: rgba(255, 255, 255, 1);
   --tx-w60: rgba(255, 255, 255, 0.55);
   --tx-w30: rgba(255, 255, 255, 0.28);
@@ -443,7 +443,7 @@
 }
 
 .tx-link-btn:hover {
-  color: #56d364;
+  color: #d8b4fe;
 }
 
 /* Scan */

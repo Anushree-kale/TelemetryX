@@ -1,4 +1,4 @@
-/* INTERFACE-inspired — black canvas, GitHub green accents */
+/* INTERFACE-inspired — black canvas, purple accents */
 
 .interface-bg {
   position: relative;
@@ -38,7 +38,7 @@
   height: 420px;
   top: -80px;
   left: 10%;
-  background: rgba(35, 134, 54, 0.55);
+  background: rgba(168, 85, 247, 0.55);
 }
 
 .interface-bg__glow--b {
@@ -46,7 +46,7 @@
   height: 360px;
   bottom: 10%;
   right: 5%;
-  background: rgba(63, 185, 80, 0.25);
+  background: rgba(168, 85, 247, 0.25);
 }
 
 /* ── Landing hero ── */
@@ -102,8 +102,8 @@
   gap: 0.5rem;
   padding: 0.85rem 1.75rem;
   border-radius: 6px;
-  border: 1px solid var(--accent-emphasis, #238636);
-  background: var(--accent-emphasis, #238636);
+  border: 1px solid var(--accent-emphasis, #A855F7);
+  background: var(--accent-emphasis, #A855F7);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
@@ -114,10 +114,10 @@
 }
 
 .landing-cta:hover {
-  background: var(--accent-hover, #2ea043);
-  border-color: var(--accent-hover, #2ea043);
+  background: var(--accent-hover, #9333ea);
+  border-color: var(--accent-hover, #9333ea);
   transform: translateY(-1px);
-  box-shadow: 0 8px 28px rgba(35, 134, 54, 0.35);
+  box-shadow: 0 8px 28px rgba(168, 85, 247, 0.35);
 }
 
 .landing-cta--ghost {
@@ -165,7 +165,7 @@
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent-bright, #3fb950);
+  color: var(--accent-bright, #c084fc);
 }
 
 .recent-profiles__title {
@@ -182,7 +182,7 @@
 }
 
 .recent-profiles__title-line--accent {
-  color: var(--accent-bright, #3fb950);
+  color: var(--accent-bright, #c084fc);
 }
 
 .recent-profiles__sub {
@@ -199,7 +199,7 @@
 }
 
 .recent-profiles__signed-in strong {
-  color: var(--accent-bright, #3fb950);
+  color: var(--accent-bright, #c084fc);
 }
 
 .recent-profiles__hint {
@@ -259,13 +259,13 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(63, 185, 80, 0.06) 0%, transparent 55%);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.06) 0%, transparent 55%);
   pointer-events: none;
 }
 
 .gh-profile-card:hover {
-  border-color: #3fb950;
-  box-shadow: 0 16px 40px rgba(35, 134, 54, 0.2), 0 8px 24px rgba(0, 0, 0, 0.5);
+  border-color: #c084fc;
+  box-shadow: 0 16px 40px rgba(168, 85, 247, 0.2), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .gh-profile-card__header {
@@ -386,7 +386,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--accent-bright, #3fb950);
+  color: var(--accent-bright, #c084fc);
   text-transform: uppercase;
 }
 
@@ -398,30 +398,30 @@
 .auth-box {
   border-color: #30363d !important;
   background: rgba(13, 17, 23, 0.92) !important;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(63, 185, 80, 0.08) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(168, 85, 247, 0.08) !important;
 }
 
 .auth-tab--active {
-  background: rgba(35, 134, 54, 0.2) !important;
-  color: var(--accent-bright, #3fb950) !important;
+  background: rgba(168, 85, 247, 0.2) !important;
+  color: var(--accent-bright, #c084fc) !important;
 }
 
 .auth-field input:focus {
-  border-color: rgba(63, 185, 80, 0.65) !important;
-  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.15) !important;
+  border-color: rgba(168, 85, 247, 0.65) !important;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15) !important;
 }
 
 .auth-submit {
-  background: var(--accent-emphasis, #238636) !important;
+  background: var(--accent-emphasis, #A855F7) !important;
 }
 
 .auth-submit:hover:not(:disabled) {
-  background: var(--accent-hover, #2ea043) !important;
+  background: var(--accent-hover, #9333ea) !important;
 }
 
 .auth-github-inline:hover {
-  border-color: #3fb950;
-  background: rgba(63, 185, 80, 0.08);
+  border-color: #c084fc;
+  background: rgba(168, 85, 247, 0.08);
 }
 
 .app-shell-wrap {
@@ -442,8 +442,8 @@
 }
 
 .oauth-callback-spinner {
-  border-color: rgba(63, 185, 80, 0.2) !important;
-  border-top-color: var(--accent-bright, #3fb950) !important;
+  border-color: rgba(168, 85, 247, 0.2) !important;
+  border-top-color: var(--accent-bright, #c084fc) !important;
 }
 
 /* App header — GitHub nav bar */
@@ -466,8 +466,8 @@
 }
 
 .tab-btn.active {
-  background: rgba(35, 134, 54, 0.18) !important;
-  color: var(--accent-bright, #3fb950) !important;
+  background: rgba(168, 85, 247, 0.18) !important;
+  color: var(--accent-bright, #c084fc) !important;
   box-shadow: none !important;
 }
 
@@ -502,17 +502,17 @@
 }
 
 .scan-input:focus {
-  border-color: #3fb950 !important;
+  border-color: #c084fc !important;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.15);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
 }
 
 .btn-analyze {
-  background: var(--accent-emphasis, #238636) !important;
+  background: var(--accent-emphasis, #A855F7) !important;
 }
 
 .btn-analyze:hover:not(:disabled) {
-  background: var(--accent-hover, #2ea043) !important;
+  background: var(--accent-hover, #9333ea) !important;
 }
 
 /* Dark results panel */
@@ -549,7 +549,7 @@
 }
 
 .side-rail-logo {
-  background: var(--accent-emphasis, #238636) !important;
+  background: var(--accent-emphasis, #A855F7) !important;
 }
 
 .side-rail-btn {
@@ -557,8 +557,8 @@
 }
 
 .side-rail-btn.active {
-  background: rgba(35, 134, 54, 0.15) !important;
-  color: var(--accent-bright, #3fb950) !important;
+  background: rgba(168, 85, 247, 0.15) !important;
+  color: var(--accent-bright, #c084fc) !important;
 }
 
 .side-rail-label {
@@ -566,30 +566,30 @@
 }
 
 .panel-pager-btn--next:not(:disabled) {
-  background: var(--accent-emphasis, #238636) !important;
-  border-color: var(--accent-emphasis, #238636) !important;
+  background: var(--accent-emphasis, #A855F7) !important;
+  border-color: var(--accent-emphasis, #A855F7) !important;
 }
 
 .compare-submit-btn {
-  background: #238636 !important;
+  background: #A855F7 !important;
 }
 
 .compare-submit-btn:hover:not(:disabled) {
-  background: #2ea043 !important;
+  background: #9333ea !important;
 }
 
 .compare-vs-divider {
-  color: #3fb950 !important;
+  color: #c084fc !important;
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, #238636, #3fb950) !important;
+  background: linear-gradient(90deg, #A855F7, #c084fc) !important;
 }
 
 .filter-btn.active,
 .tab-btn.active,
 .pagination-btn:hover:not(:disabled) {
-  border-color: #3fb950 !important;
+  border-color: #c084fc !important;
 }
 
 .app-main:not(:has(.dashboard-shell)) .card {

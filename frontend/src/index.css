@@ -69,7 +69,7 @@ h1 {
 }
 
 .status.complete {
-  color: #4ade80;
+  color: #c084fc;
 }
 
 .analyze-row {
@@ -92,7 +92,7 @@ h1 {
   padding: 0.6rem 1.25rem;
   border-radius: 6px;
   border: none;
-  background: #238636;
+  background: #A855F7;
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -201,8 +201,8 @@ h1 {
 }
 
 .filter-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: #A855F7;
+  border-color: #A855F7;
   color: #fff;
 }
 
@@ -478,7 +478,7 @@ h1 {
 .pagination-btn:hover:not(:disabled) {
   background: #1a2332;
   color: #e7ecf3;
-  border-color: #3b82f6;
+  border-color: #A855F7;
 }
 
 .pagination-btn:disabled {
@@ -531,7 +531,7 @@ h1 {
 
 .tab-btn.active {
   background: #1e293b;
-  color: #3b82f6;
+  color: #c084fc;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
@@ -595,7 +595,7 @@ h1 {
   border-radius: 50%;
 }
 
-.legend-dot.green { background: hsl(140, 70%, 40%); }
+.legend-dot.green { background: hsl(271, 91%, 65%); }
 .legend-dot.amber { background: hsl(38, 90%, 48%); }
 .legend-dot.red { background: hsl(0, 75%, 45%); }
 
@@ -672,7 +672,7 @@ h1 {
 
 .hover-risk-pill.high { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 .hover-risk-pill.medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
-.hover-risk-pill.low { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+.hover-risk-pill.low { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
 
 .hover-panel-loc {
   font-size: 0.75rem;
@@ -794,18 +794,18 @@ h1 {
 }
 
 .compare-select:focus, .compare-input:focus {
-  border-color: #3b82f6;
+  border-color: #A855F7;
 }
 
 .compare-vs-divider {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #3b82f6;
+  color: #c084fc;
   padding-bottom: 0.5rem;
 }
 
 .compare-submit-btn {
-  background: #3b82f6;
+  background: #A855F7;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -817,7 +817,7 @@ h1 {
 }
 
 .compare-submit-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: #9333ea;
 }
 
 .compare-submit-btn:disabled {
@@ -874,7 +874,7 @@ h1 {
 }
 
 .repo-badge.a { background: #3b82f6; }
-.repo-badge.b { background: #10b981; }
+.repo-badge.b { background: #A855F7; }
 
 .compare-repo-url {
   font-size: 1rem;
@@ -1044,7 +1044,7 @@ h1 {
 .intel-tab.active {
   background: #243044;
   color: #e7ecf3;
-  border-color: #3b82f6;
+  border-color: #A855F7;
 }
 
 .tab-loading,
@@ -1177,7 +1177,7 @@ h1 {
 
 .roadmap-cascade {
   font-size: 0.8rem;
-  color: #60a5fa;
+  color: #c084fc;
   margin: 0 0 0.5rem;
 }
 
@@ -1203,14 +1203,14 @@ h1 {
   padding: 0.35rem 0.65rem;
   font-size: 0.7rem;
   border-radius: 4px;
-  border: 1px solid #3b82f6;
+  border: 1px solid #A855F7;
   background: transparent;
-  color: #60a5fa;
+  color: #c084fc;
   cursor: pointer;
 }
 
 .btn-jira:hover {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(168, 85, 247, 0.15);
 }
 
 /* Graph tab (Cytoscape) */
@@ -1397,12 +1397,12 @@ h1 {
 .cluster-priority-score {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #60a5fa;
+  color: #c084fc;
 }
 
 .cluster-files summary {
   font-size: 0.75rem;
-  color: #60a5fa;
+  color: #c084fc;
   cursor: pointer;
 }
 
@@ -1690,7 +1690,7 @@ tr.row-critical td:first-child {
 
 .roadmap-downstream-details summary {
   cursor: pointer;
-  color: #60a5fa;
+  color: #c084fc;
 }
 
 .roadmap-downstream-list {
@@ -1893,7 +1893,7 @@ tr.row-critical td:first-child {
 
 .modules-glossary summary {
   cursor: pointer;
-  color: #60a5fa;
+  color: #c084fc;
   font-weight: 500;
 }
 
@@ -2268,7 +2268,7 @@ tr.row-critical td:first-child {
   color: #cbd5e1 !important;
 }
 .cluster-files summary {
-  color: #60a5fa !important;
+  color: #c084fc !important;
 }
 .cluster-files ul {
   color: #cbd5e1 !important;
