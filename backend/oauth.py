@@ -15,7 +15,6 @@ def get_client_id() -> str:
         raise RuntimeError("GITHUB_OAUTH_CLIENT_ID is not set")
     return val
 
-
 def get_client_secret() -> str:
     val = os.getenv("GITHUB_OAUTH_CLIENT_SECRET", "").strip()
     if not val:

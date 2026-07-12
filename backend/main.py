@@ -13,13 +13,13 @@ import config
 import database
 import export as job_export
 import post_analysis
+import redis_cache
 import oauth as oauth_service
 import jwt_service
 from debt_model import MODEL_PATH, get_scorer
 from explain import reasons_to_text
 from graph_builder import graph_from_stored_json
-from tasks import analyze_repo_task
-import branch_analyzer
+from tasks import analyze_repo_task, analyze_branch_task
 
 
 @asynccontextmanager
@@ -172,22 +172,64 @@ def health_check():
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_repo_endpoint(body: AnalyzeRequest):
-    repo_url = str(body.repo_url)
+    repo_url = str(body.repo_url).rstrip("/")
     job_id = database.create_job(repo_url)
     analyze_repo_task.delay(job_id, repo_url)
     return AnalyzeResponse(job_id=job_id, status="pending")
 
 
-@app.post("/analyze/branch")
+@app.post("/analyze/branch", response_model=AnalyzeResponse)
 def analyze_branch_endpoint(body: AnalyzeBranchRequest):
-    repo_url = str(body.repo_url)
+    """Submit a branch-noise analysis job. Returns a job_id for polling.
+
+    The actual clone + LLM call runs inside a Celery worker (same pattern as
+    /analyze). Poll GET /analyze/branch/{job_id}/result until status is not
+    'pending' or 'running'.
+    """
+    repo_url = str(body.repo_url).rstrip("/")
     branch_name = body.branch_name
-    try:
-        return branch_analyzer.analyze_branch_noise(repo_url, branch_name)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    job_id = database.create_job(repo_url)
+    analyze_branch_task.delay(job_id, repo_url, branch_name)
+    return AnalyzeResponse(job_id=job_id, status="pending")
+
+
+@app.get("/analyze/branch/{job_id}/result")
+def get_branch_result(job_id: int):
+    """Poll for the result of a branch-noise analysis job.
+
+    Returns HTTP 202 while the job is pending or running (with current progress).
+    Returns HTTP 200 with the full branch-noise payload once complete.
+    Returns HTTP 500 if the job failed.
+    """
+    from fastapi.responses import JSONResponse as _JSONResponse
+    job = database.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Branch job not found")
+
+    if job["status"] in ("pending", "running"):
+        return _JSONResponse(
+            status_code=202,
+            content={
+                "job_id": job_id,
+                "status": job["status"],
+                "progress_pct": job.get("progress_pct") or 0,
+                "progress_message": job.get("progress_message") or "",
+            },
+        )
+
+    if job["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=job.get("error_detail") or "Branch analysis failed",
+        )
+
+    result = redis_cache.get_branch_job_result(job_id)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="Branch analysis result not found (may have expired from cache)",
+        )
+    return result
 
 
 @app.get("/jobs/latest")

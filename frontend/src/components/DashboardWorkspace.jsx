@@ -14,6 +14,7 @@ import { SectionHint } from "./appPrimitives";
 import WorkspaceTopbar from "./WorkspaceTopbar";
 import ScanView from "./ScanView";
 import WorkspaceOverview from "./WorkspaceOverview";
+import BranchAnalyzer from "./BranchAnalyzer";
 import { PANEL_TITLES } from "../labels";
 import ExportButton from "./ExportButton";
 
@@ -212,6 +213,15 @@ export default function DashboardWorkspace({ apiBase, repoList, onReposChanged, 
             </div>
 
             <div className="tx-panel-detail">
+              {activePanel === "branch" && (
+                <div className="card">
+                  <BranchAnalyzer
+                    apiBase={apiBase}
+                    repoUrl={activeRepoUrl}
+                  />
+                </div>
+              )}
+
               {activePanel === "fixes" && jobId && (
                 <div className="card">
                   <div className="card-heading-row">

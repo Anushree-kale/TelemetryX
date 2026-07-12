@@ -9,6 +9,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import analyzer
+import branch_analyzer
 import database
 import explain
 import post_analysis
@@ -171,3 +172,39 @@ def _persist_results(
 
     if co_change_pairs:
         database.insert_co_change_pairs(job_id, co_change_pairs)
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.analyze_branch_task",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=120,
+    retry_jitter=True,
+    time_limit=600,    # hard kill at 10 minutes (clone + LLM call)
+    soft_time_limit=540,
+)
+def analyze_branch_task(self, job_id: int, repo_url: str, branch_name: str) -> dict:
+    """Async Celery wrapper around branch_analyzer.analyze_branch_noise.
+
+    Keeps /analyze/branch non-blocking — the handler returns a job_id immediately
+    and the client polls /analyze/branch/{job_id}/result until status != pending/running.
+    """
+    _ensure_backend_on_path()
+    try:
+        database.update_job_status(job_id, "running")
+        database.update_job_progress(job_id, 10, f"Fetching HEAD SHA for '{branch_name}'\u2026")
+
+        result = branch_analyzer.analyze_branch_noise(repo_url, branch_name)
+
+        database.update_job_progress(job_id, 100, "Complete")
+        database.update_job_status(job_id, "complete")
+        redis_cache.set_branch_job_result(job_id, result)
+        return {"job_id": job_id, "status": "complete"}
+
+    except Exception as exc:
+        if self.request.retries >= 2:
+            database.update_job_status(job_id, "failed", error_detail=str(exc))
+            database.update_job_progress(job_id, 0, "Failed")
+        raise

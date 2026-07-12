@@ -795,11 +795,11 @@ def get_last_completed_job_for_repo(repo_url: str) -> dict[str, Any] | None:
             """
             SELECT id, repo_url, created_at, status
             FROM analysis_jobs
-            WHERE repo_url = %s AND status = 'complete'
+            WHERE rtrim(repo_url, '/') = %s AND status = 'complete'
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            (repo_url,),
+            (repo_url.rstrip("/"),),
         )
         row = cur.fetchone()
         return dict(row) if row else None

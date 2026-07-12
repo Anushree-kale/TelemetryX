@@ -5,6 +5,7 @@ export const APP_TAGLINE =
 
 export const PANELS = [
   { id: "overview", icon: "home", label: "Overview", hint: "Executive summary" },
+  { id: "branch", icon: "branch", label: "PR Noise", hint: "Branch impact vs baseline" },
   { id: "fixes", icon: "ticket", label: "Remediation", hint: "Jira-ready work items" },
   { id: "charts", icon: "chart", label: "Metrics", hint: "Trends and complexity" },
   { id: "files", icon: "folder", label: "Modules", hint: "Detailed file table" },
@@ -15,6 +16,7 @@ export const PANELS = [
 
 export const PANEL_TITLES = {
   overview: "Overview",
+  branch: "PR / Branch noise",
   fixes: "Remediation plan",
   charts: "Metrics & trends",
   files: "Module inventory",

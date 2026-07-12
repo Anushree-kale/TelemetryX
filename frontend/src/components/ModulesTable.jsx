@@ -10,6 +10,17 @@ const COLUMNS = Object.keys(COLUMN_LABELS).map((key) => ({
   sortable: key !== "file_path",
 }));
 
+// Columns hidden by default — visible only when "Show advanced" is toggled on.
+// cyclomatic_complexity is intentionally NOT in this set: it's the single
+// most direct per-file complexity signal and is worth surfacing by default.
+const ADVANCED_COLUMN_KEYS = new Set([
+  "betweenness",
+  "downstream_count",
+  "out_degree",
+  "top_author_pct",
+  "test_coverage_ratio",
+]);
+
 const RISK_COLORS = {
   high: "#ef4444",
   medium: "#f59e0b",
@@ -77,6 +88,11 @@ export default function ModulesTable({ modules }) {
   const [riskFilter, setRiskFilter] = useState("all");
   const [selected, setSelected] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const visibleColumns = showAdvanced
+    ? COLUMNS
+    : COLUMNS.filter((c) => !ADVANCED_COLUMN_KEYS.has(c.key));
 
   const filtered = useMemo(() => {
     if (riskFilter === "all") return modules;
@@ -154,13 +170,22 @@ export default function ModulesTable({ modules }) {
         <span className="toolbar-count">
           {sorted.length} module{sorted.length !== 1 ? "s" : ""}
         </span>
+        <button
+          type="button"
+          className={`filter-btn ${showAdvanced ? "active" : ""}`}
+          style={{ marginLeft: "auto" }}
+          onClick={() => setShowAdvanced((v) => !v)}
+          title="Toggle Centrality, Downstream impact, Dependencies, Top contributor %, Test file ratio"
+        >
+          {showAdvanced ? "Hide advanced" : "Show advanced"}
+        </button>
       </div>
 
       <div className="modules-table-scroll">
         <table className="modules-table modules-table-wide">
           <thead>
             <tr>
-              {COLUMNS.map((col) => (
+              {visibleColumns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
@@ -190,7 +215,7 @@ export default function ModulesTable({ modules }) {
                   }
                 }}
               >
-                {COLUMNS.map((col) => (
+                {visibleColumns.map((col) => (
                   <td
                     key={col.key}
                     className={

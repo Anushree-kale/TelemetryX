@@ -1,7 +1,7 @@
 import { PANELS } from "../labels";
 
 const NAV_GROUPS = [
-  { label: "INTELLIGENCE", panels: ["overview", "failure"] },
+  { label: "INTELLIGENCE", panels: ["overview", "branch"] },
   { label: "CODE QUALITY", panels: ["fixes", "charts", "files"] },
   { label: "STRUCTURE", panels: ["graph", "clusters", "cochange"] },
 ];

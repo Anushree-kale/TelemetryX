@@ -28,8 +28,27 @@ def _get_branch_head_sha(repo_url: str, branch_name: str) -> str | None:
     return None
 
 
+def _sanitize_commit_message(msg: str, max_len: int = 200) -> str:
+    """Strip non-printable chars and cap length.
+
+    Mitigation for prompt-injection risk: since we clone arbitrary repo URLs,
+    a hostile repo could craft commit messages designed to manipulate the LLM
+    summary. Low-stakes today (output goes only to the requesting user), but
+    sanitizing now keeps the surface documented and bounded.
+    """
+    sanitized = "".join(c for c in msg if c.isprintable() or c in ("\n", "\t"))
+    return sanitized[:max_len].strip()
+
+
 def _get_branch_diff_and_commits(repo_url: str, branch_name: str, base_branch: str = "main") -> tuple[list[str], list[str]]:
-    """Clone repo, get touched files and commit messages between base_branch and branch_name."""
+    """Clone repo, get touched files and commit messages between base_branch and branch_name.
+
+    TODO(perf): double-cloning. Every call here does its own fresh blobless clone even
+    when the main Celery analyze_repo_task already cloned the same repo. The right fix is
+    a shared temp-dir registry keyed by (repo_url, HEAD SHA) so branches on the same repo
+    can reuse the existing clone. Deferred — correctness is fine today, this is pure
+    performance overhead.
+    """
     import tempfile
     tmp_dir = tempfile.mkdtemp(prefix="telemetryx_branch_")
     
@@ -134,7 +153,9 @@ def analyze_branch_noise(repo_url: str, branch_name: str) -> dict[str, Any]:
     
     # 5. Use LLM to summarize the noise and overlap
     if unstable_files:
-        commits_text = "\n".join(f"- {msg}" for msg in commit_messages[:50]) # cap at 50 commits
+        # Sanitize commit messages before injecting into the prompt — see _sanitize_commit_message.
+        sanitized_messages = [_sanitize_commit_message(m) for m in commit_messages[:50]]
+        commits_text = "\n".join(f"- {msg}" for msg in sanitized_messages)
         findings_text = "\n".join(llm_findings_context)
         
         prompt = f"""You are an expert engineering manager reviewing a branch's potential impact on code quality.

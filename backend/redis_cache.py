@@ -68,3 +68,32 @@ def set_cached_branch_noise(repo_url: str, head_sha: str, result: dict[str, Any]
     except redis.RedisError:
         pass
 
+
+# ── Branch job result (keyed by job_id so the API can poll it) ───────────────
+
+def _branch_result_key(job_id: int) -> str:
+    return f"telemetryx:branch_result:{job_id}"
+
+
+def set_branch_job_result(job_id: int, result: dict[str, Any]) -> None:
+    """Persist the completed branch-noise result for the polling endpoint."""
+    try:
+        _client().setex(
+            _branch_result_key(job_id),
+            CACHE_TTL_SECONDS,
+            json.dumps(result),
+        )
+    except redis.RedisError:
+        pass
+
+
+def get_branch_job_result(job_id: int) -> dict[str, Any] | None:
+    """Retrieve a completed branch-noise result by job_id."""
+    try:
+        raw = _client().get(_branch_result_key(job_id))
+        if not raw:
+            return None
+        return json.loads(raw)
+    except redis.RedisError:
+        return None
+
