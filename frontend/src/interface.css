@@ -3,7 +3,7 @@
 .interface-bg {
   position: relative;
   min-height: 100vh;
-  background: var(--bg-stage, #010409);
+  background: transparent;
   color: var(--text-on-dark, #f0f6fc);
   overflow: hidden;
 }

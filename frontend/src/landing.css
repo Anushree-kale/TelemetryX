@@ -12,7 +12,7 @@
   --lp-nav-width: 72px;
   position: relative;
   min-height: 100vh;
-  background: var(--lp-bg);
+  background: transparent;
   color: var(--lp-text);
   overflow-x: hidden;
 }
