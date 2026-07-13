@@ -43,14 +43,14 @@ export default function AppShell() {
           <div className="workspace-tabs">
             <button
               type="button"
-              className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
+              className={`tab-btn cursor-target ${activeTab === "dashboard" ? "active" : ""}`}
               onClick={() => setActiveTab("dashboard")}
             >
               Analyse
             </button>
             <button
               type="button"
-              className={`tab-btn ${activeTab === "tools" ? "active" : ""}`}
+              className={`tab-btn cursor-target ${activeTab === "tools" ? "active" : ""}`}
               onClick={() => setActiveTab("tools")}
             >
               Admin
